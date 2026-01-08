@@ -1,30 +1,40 @@
 import os
+import shutil
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 
 # Default to local SQLite database in project root / src / data
-# We use absolute paths to avoid issues on different environments
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # This is 'src/'
 DB_FOLDER = os.path.join(BASE_DIR, 'data')
+ORIGINAL_DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
 
 # Robust path detection for Streamlit Cloud
-if os.environ.get('STREAMLIT_RUNTIME_ENV'):
-    # In Streamlit Cloud, the root is usually /mount/src/rapoartedooh
-    # Let's try to detect the project root
-    cwd = os.getcwd()
-    potential_db = os.path.join(cwd, 'src', 'data', 'rapoartedooh.db')
-    if os.path.exists(potential_db):
-        DB_PATH = potential_db
+IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_RUNTIME_ENV') is not None
+
+if IS_STREAMLIT_CLOUD:
+    # On Streamlit Cloud, the repo is often read-only. 
+    # We copy the DB to /tmp to make it writable and allowed to create journals.
+    TEMP_DB_PATH = "/tmp/rapoartedooh.db"
+    
+    # Try to copy the original DB to /tmp if it exists and hasn't been copied yet
+    if os.path.exists(ORIGINAL_DB_PATH):
+        try:
+            # We copy it every time to ensure we have the latest data from GitHub on reboot
+            # but only if it's not already there or if we want to reset
+            shutil.copy2(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+            DB_PATH = TEMP_DB_PATH
+            print(f"DEBUG: Copied database to {DB_PATH}")
+        except Exception as e:
+            print(f"DEBUG: Failed to copy DB to /tmp: {e}")
+            DB_PATH = ORIGINAL_DB_PATH
     else:
-        DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
+        DB_PATH = TEMP_DB_PATH
 else:
-    DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
+    DB_PATH = ORIGINAL_DB_PATH
 
 DB_PATH = os.path.abspath(DB_PATH)
 DATABASE_URL = f"sqlite:///{DB_PATH}"
-
-print(f"DEBUG: Using Database at {DB_PATH}")
 
 # For SQLite with many threads (like Streamlit), we need check_same_thread=False
 ENGINE_ARGS = {
@@ -35,9 +45,8 @@ ENGINE_ARGS = {
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
-        # Helps with read-only filesystems or multiple threads
-        cursor.execute("PRAGMA journal_mode=MEMORY")
-        cursor.execute("PRAGMA synchronous=OFF")
+        cursor.execute("PRAGMA journal_mode=WAL") # WAL is often better for concurrent reads/writes
+        cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
 # Caching for Streamlit
