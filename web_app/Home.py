@@ -16,13 +16,23 @@ from src.data.db_config import init_db
 # Ensure DB is initialized
 try:
     init_db()
-except Exception:
-    # On some cloud environments, the DB might be read-only.
-    # We proceed if it already exists, SQLAlchemy will fail later if write is truly required.
+except Exception as e:
+    st.error(f"❌ Database Initialization Error: {str(e)}")
+    import traceback
+    st.code(traceback.format_exc())
+    # Proceed anyway, but the error helps diagnosis
     pass
 
 def main():
     st.title(_("Mobile DOOH Management"))
+    
+    # Debug Info for Database
+    from src.data.db_config import DB_PATH
+    if st.sidebar.checkbox("Show Debug Info", value=False):
+        st.sidebar.write(f"DB Path: `{DB_PATH}`")
+        st.sidebar.write(f"DB Exists: `{os.path.exists(DB_PATH)}`")
+        if os.path.exists(DB_PATH):
+            st.sidebar.write(f"DB Size: `{os.path.getsize(DB_PATH)}` bytes")
     st.subheader(_("Dashboard Overview"))
 
     # Initialize Managers

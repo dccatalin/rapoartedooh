@@ -6,18 +6,25 @@ from sqlalchemy.ext.declarative import declarative_base
 # Default to local SQLite database in project root / src / data
 # We use absolute paths to avoid issues on different environments
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # This is 'src/'
-PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DB_FOLDER = os.path.join(BASE_DIR, 'data')
 
-if not os.path.exists(DB_FOLDER):
-    try:
-        os.makedirs(DB_FOLDER, exist_ok=True)
-    except:
-        # Fallback to current directory if src/data is not writable
-        DB_FOLDER = os.getcwd()
+# Robust path detection for Streamlit Cloud
+if os.environ.get('STREAMLIT_RUNTIME_ENV'):
+    # In Streamlit Cloud, the root is usually /mount/src/rapoartedooh
+    # Let's try to detect the project root
+    cwd = os.getcwd()
+    potential_db = os.path.join(cwd, 'src', 'data', 'rapoartedooh.db')
+    if os.path.exists(potential_db):
+        DB_PATH = potential_db
+    else:
+        DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
+else:
+    DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
 
-DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
-DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}"
+DB_PATH = os.path.abspath(DB_PATH)
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+print(f"DEBUG: Using Database at {DB_PATH}")
 
 # For SQLite with many threads (like Streamlit), we need check_same_thread=False
 ENGINE_ARGS = {
