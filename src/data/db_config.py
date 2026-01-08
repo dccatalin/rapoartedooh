@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -28,8 +28,17 @@ print(f"DEBUG: Using Database at {DB_PATH}")
 
 # For SQLite with many threads (like Streamlit), we need check_same_thread=False
 ENGINE_ARGS = {
-    "connect_args": {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+    "connect_args": {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+    "pool_pre_ping": True
 }
+
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if DATABASE_URL.startswith("sqlite"):
+        cursor = dbapi_connection.cursor()
+        # Helps with read-only filesystems or multiple threads
+        cursor.execute("PRAGMA journal_mode=MEMORY")
+        cursor.execute("PRAGMA synchronous=OFF")
+        cursor.close()
 
 # Caching for Streamlit
 try:
@@ -40,6 +49,7 @@ try:
         @st.cache_resource
         def _get_engine_and_session():
             _engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
+            event.listen(_engine, "connect", set_sqlite_pragma)
             _SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=_engine))
             return _engine, _SessionLocal
 
@@ -51,10 +61,12 @@ try:
         Base = _get_declarative_base()
     else:
         engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
+        event.listen(engine, "connect", set_sqlite_pragma)
         SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
         Base = declarative_base()
 except (ImportError, Exception):
     engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
+    event.listen(engine, "connect", set_sqlite_pragma)
     SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
     Base = declarative_base()
 
