@@ -1,0 +1,200 @@
+{
+    "Timisoara": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T13:18:08.153879"
+        },
+        "timestamp": "2025-12-01T13:18:08.153905"
+    },
+    "Bucuresti": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T13:19:08.562333"
+        },
+        "timestamp": "2025-12-01T13:19:08.562424"
+    },
+    "Ciorogarla": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T13:21:06.096174"
+        },
+        "timestamp": "2025-12-01T13:21:06.096551"
+    },
+    "Hunedoara": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T13:21:56.923355"
+        },
+        "timestamp": "2025-12-01T13:21:56.923445"
+    },
+    "Brasov": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:05:31.344625"
+        },
+        "timestamp": "2025-12-01T20:05:31.344731"
+    },
+    "Cluj-Napoca": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:05:45.639633"
+        },
+        "timestamp": "2025-12-01T20:05:45.639748"
+    },
+    "Craiova": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:06:11.273647"
+        },
+        "timestamp": "2025-12-01T20:06:11.273771"
+    },
+    "Galati": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:06:16.586468"
+        },
+        "timestamp": "2025-12-01T20:06:16.586570"
+    },
+    "Iasi": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:06:35.357220"
+        },
+        "timestamp": "2025-12-01T20:06:35.357328"
+    },
+    "Oradea": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:06:37.337564"
+        },
+        "timestamp": "2025-12-01T20:06:37.337673"
+    },
+    "Ploiesti": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-01T20:06:39.299886"
+        },
+        "timestamp": "2025-12-01T20:06:39.299991"
+    },
+    "Targoviste": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T12:27:46.132156"
+        },
+        "timestamp": "2025-12-02T12:27:46.132227"
+    },
+    "Constanta": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T12:52:48.671350"
+        },
+        "timestamp": "2025-12-02T12:52:48.671476"
+    },
+    "Sibiu": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:06:12.170526"
+        },
+        "timestamp": "2025-12-02T13:06:12.170626"
+    },
+    "Satu Mare": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:15:55.193509"
+        },
+        "timestamp": "2025-12-02T13:15:55.193614"
+    },
+    "Baia Mare": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:19:36.969123"
+        },
+        "timestamp": "2025-12-02T13:19:36.969216"
+    },
+    "Suceava": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:22:32.782909"
+        },
+        "timestamp": "2025-12-02T13:22:32.783024"
+    },
+    "Piatra Neamt": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:24:17.696439"
+        },
+        "timestamp": "2025-12-02T13:24:17.696746"
+    },
+    "Bacau": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T13:25:27.854286"
+        },
+        "timestamp": "2025-12-02T13:25:27.854391"
+    },
+    "Sector 3 Bucuresti": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-02T22:16:58.815418"
+        },
+        "timestamp": "2025-12-02T22:16:58.815643"
+    },
+    "Chitila": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-06T20:05:46.169476"
+        },
+        "timestamp": "2025-12-06T20:05:46.169566"
+    },
+    "Bucuresti Sector 3": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2025-12-06T20:07:16.858760"
+        },
+        "timestamp": "2025-12-06T20:07:16.858960"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "89307895-bb78-46ff-952c-17c8382b139a": {
+        "id": "89307895-bb78-46ff-952c-17c8382b139a",
+        "name": "Iovu",
+        "phone": "",
+        "license_number": "",
+        "status": "active",
+        "assigned_vehicle": "589f7c43-18e3-4557-8af6-c8b1c8d11dbd",
+        "assignment_history": [
+            {
+                "vehicle_id": "589f7c43-18e3-4557-8af6-c8b1c8d11dbd",
+                "vehicle_name": "Toby1",
+                "start_date": "2025-12-02T17:09:58.976219",
+                "end_date": null
+            }
+        ],
+        "created": "2025-12-02T17:09:48.219767",
+        "last_modified": "2025-12-02T17:09:58.976223"
+    }
+}

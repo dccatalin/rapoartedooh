@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Database
+*.db
+
+# Streamlit
+.streamlit/
+
+# Project Specific
+documents/
+reports/
+temp_upload/
+rapoartedooh_deployment.zip
+
+# OS
+.DS_Store

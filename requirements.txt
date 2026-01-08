@@ -1,0 +1,9 @@
+PyQt6>=6.4.0
+reportlab>=3.6.0
+matplotlib>=3.5.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+SQLAlchemy>=2.0.0
+streamlit>=1.30.0
+pandas>=2.0.0
+plotly>=5.18.0

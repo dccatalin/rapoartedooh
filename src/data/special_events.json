@@ -1,0 +1,40 @@
+{
+    "Bucuresti": {
+        "2024-12-01": {
+            "name": "Ziua Nationala",
+            "traffic_multiplier": 0.5,
+            "pedestrian_multiplier": 2.0
+        },
+        "2024-12-31": {
+            "name": "Revelion",
+            "traffic_multiplier": 0.6,
+            "pedestrian_multiplier": 2.5
+        },
+        "2024-04-15": {
+            "name": "Paste",
+            "traffic_multiplier": 0.6,
+            "pedestrian_multiplier": 0.7999999999999999
+        },
+        "2024-11-28": {
+            "name": "Targ Craciun",
+            "start_date": "2024-11-28",
+            "end_date": "2024-12-25",
+            "is_single_day": false,
+            "traffic_multiplier": 0.4,
+            "pedestrian_multiplier": 0.8,
+            "location": "Piata Constitutiei"
+        }
+    },
+    "Cluj-Napoca": {
+        "2024-08-01": {
+            "name": "Untold Festival",
+            "traffic_multiplier": 1.5,
+            "pedestrian_multiplier": 3.0
+        },
+        "2024-12-01": {
+            "name": "Ziua Nationala",
+            "traffic_multiplier": 0.6,
+            "pedestrian_multiplier": 1.8
+        }
+    }
+}

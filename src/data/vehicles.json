@@ -1,0 +1,19 @@
+{
+    "589f7c43-18e3-4557-8af6-c8b1c8d11dbd": {
+        "id": "589f7c43-18e3-4557-8af6-c8b1c8d11dbd",
+        "name": "Toby1",
+        "registration": "B23TOB",
+        "driver_id": "89307895-bb78-46ff-952c-17c8382b139a",
+        "driver_name": "Iovu",
+        "status": "active",
+        "status_history": [
+            {
+                "status": "active",
+                "date": "2025-12-02T17:09:18.818321",
+                "note": "Vehicle created"
+            }
+        ],
+        "created": "2025-12-02T17:09:18.818336",
+        "last_modified": "2025-12-02T17:09:58.975999"
+    }
+}

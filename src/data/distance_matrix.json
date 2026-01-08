@@ -1,0 +1,86 @@
+{
+    "Bucuresti-Cluj": {
+        "km": 450,
+        "hours": 7
+    },
+    "Bucuresti-Iasi": {
+        "km": 390,
+        "hours": 6
+    },
+    "Bucuresti-Timisoara": {
+        "km": 540,
+        "hours": 8
+    },
+    "Bucuresti-Brasov": {
+        "km": 170,
+        "hours": 3
+    },
+    "Bucuresti-Constanta": {
+        "km": 225,
+        "hours": 2.5
+    },
+    "Bucuresti-Craiova": {
+        "km": 230,
+        "hours": 3.5
+    },
+    "Bucuresti-Sibiu": {
+        "km": 280,
+        "hours": 4.5
+    },
+    "Bucuresti-Galati": {
+        "km": 250,
+        "hours": 4
+    },
+    "Bucuresti-Oradea": {
+        "km": 600,
+        "hours": 9
+    },
+    "Bucuresti-Arad": {
+        "km": 580,
+        "hours": 8.5
+    },
+    "Cluj-Iasi": {
+        "km": 400,
+        "hours": 7.5
+    },
+    "Cluj-Timisoara": {
+        "km": 320,
+        "hours": 5
+    },
+    "Cluj-Oradea": {
+        "km": 150,
+        "hours": 2.5
+    },
+    "Timisoara-Arad": {
+        "km": 55,
+        "hours": 1
+    },
+    "Timisoara-Oradea": {
+        "km": 170,
+        "hours": 2.5
+    },
+    "Brasov-Sibiu": {
+        "km": 145,
+        "hours": 2
+    },
+    "Sibiu-Timisoara": {
+        "km": 300,
+        "hours": 4
+    },
+    "Sibiu-Cluj": {
+        "km": 175,
+        "hours": 2.5
+    },
+    "Iasi-Galati": {
+        "km": 230,
+        "hours": 4
+    },
+    "Iasi-Bacau": {
+        "km": 130,
+        "hours": 2
+    },
+    "Constanta-Galati": {
+        "km": 190,
+        "hours": 3
+    }
+}

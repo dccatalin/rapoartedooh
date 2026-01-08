@@ -1,0 +1,170 @@
+{
+    "Bucuresti": {
+        "population": 1800000,
+        "active_population_pct": 65,
+        "daily_traffic_total": 1100000,
+        "daily_pedestrian_total": 900000,
+        "modal_split": {
+            "auto": 38,
+            "walking": 25,
+            "cycling": 4,
+            "public_transport": 33
+        },
+        "avg_commute_distance_km": 12,
+        "description": "Capitala Romaniei, cel mai mare centru economic si universitar."
+    },
+    "Cluj-Napoca": {
+        "population": 330000,
+        "active_population_pct": 60,
+        "daily_traffic_total": 200000,
+        "daily_pedestrian_total": 255000,
+        "modal_split": {
+            "auto": 35,
+            "walking": 24,
+            "cycling": 7,
+            "public_transport": 34
+        },
+        "avg_commute_distance_km": 8,
+        "description": "Centru universitar major, trafic congestionat pe axa Est-Vest."
+    },
+    "Timisoara": {
+        "population": 250000,
+        "active_population_pct": 62,
+        "daily_traffic_total": 180000,
+        "daily_pedestrian_total": 200000,
+        "modal_split": {
+            "auto": 36,
+            "walking": 23,
+            "cycling": 7,
+            "public_transport": 34
+        },
+        "avg_commute_distance_km": 9,
+        "description": "Pol economic important in Vest, trafic intens."
+    },
+    "Iasi": {
+        "population": 271000,
+        "active_population_pct": 58,
+        "daily_traffic_total": 160000,
+        "daily_pedestrian_total": 190000,
+        "modal_split": {
+            "auto": 35,
+            "walking": 26,
+            "cycling": 4,
+            "public_transport": 35
+        },
+        "avg_commute_distance_km": 8,
+        "description": "Centru cultural si universitar in Nord-Est."
+    },
+    "Constanta": {
+        "population": 263000,
+        "active_population_pct": 55,
+        "daily_traffic_total": 150000,
+        "daily_pedestrian_total": 180000,
+        "modal_split": {
+            "auto": 42,
+            "walking": 28,
+            "cycling": 3,
+            "public_transport": 27
+        },
+        "avg_commute_distance_km": 10,
+        "description": "Principalul port la Marea Neagra, trafic sezonier ridicat."
+    },
+    "Brasov": {
+        "population": 237000,
+        "active_population_pct": 58,
+        "daily_traffic_total": 140000,
+        "daily_pedestrian_total": 170000,
+        "modal_split": {
+            "auto": 36,
+            "walking": 27,
+            "cycling": 4,
+            "public_transport": 33
+        },
+        "avg_commute_distance_km": 7,
+        "description": "Centru turistic si industrial major."
+    },
+    "Craiova": {
+        "population": 234000,
+        "active_population_pct": 55,
+        "daily_traffic_total": 130000,
+        "daily_pedestrian_total": 150000,
+        "modal_split": {
+            "auto": 34,
+            "walking": 29,
+            "cycling": 3,
+            "public_transport": 34
+        },
+        "avg_commute_distance_km": 8,
+        "description": "Centru industrial in Sud-Vest."
+    },
+    "Galati": {
+        "population": 217000,
+        "active_population_pct": 52,
+        "daily_traffic_total": 110000,
+        "daily_pedestrian_total": 130000,
+        "modal_split": {
+            "auto": 32,
+            "walking": 31,
+            "cycling": 3,
+            "public_transport": 34
+        },
+        "avg_commute_distance_km": 7,
+        "description": "Port la Dunare, trafic fluid."
+    },
+    "Oradea": {
+        "population": 183000,
+        "active_population_pct": 60,
+        "daily_traffic_total": 100000,
+        "daily_pedestrian_total": 120000,
+        "modal_split": {
+            "auto": 33,
+            "walking": 28,
+            "cycling": 6,
+            "public_transport": 33
+        },
+        "avg_commute_distance_km": 6,
+        "description": "Oras in dezvoltare rapida, trafic bine gestionat."
+    },
+    "Ploiesti": {
+        "population": 180000,
+        "active_population_pct": 58,
+        "daily_traffic_total": 120000,
+        "daily_pedestrian_total": 110000,
+        "modal_split": {
+            "auto": 38,
+            "walking": 26,
+            "cycling": 3,
+            "public_transport": 33
+        },
+        "avg_commute_distance_km": 8,
+        "description": "Centru industrial, nod rutier important."
+    },
+    "Hunedoara": {
+        "population": 180000,
+        "active_population_pct": 58,
+        "daily_traffic_total": 120000,
+        "daily_pedestrian_total": 110000,
+        "modal_split": {
+            "auto": 39,
+            "walking": 26,
+            "cycling": 2,
+            "public_transport": 33
+        },
+        "avg_commute_distance_km": 8,
+        "description": "Centru industrial, nod rutier important."
+    },
+    "Targoviste": {
+        "population": 75000,
+        "active_population_pct": 56,
+        "daily_traffic_total": 55000,
+        "daily_pedestrian_total": 48000,
+        "modal_split": {
+            "auto": 42,
+            "walking": 28,
+            "cycling": 3,
+            "public_transport": 27
+        },
+        "avg_commute_distance_km": 6,
+        "description": "Oras de marime medie in Dambovita, fost centru istoric."
+    }
+}

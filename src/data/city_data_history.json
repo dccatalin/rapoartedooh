@@ -1,0 +1,785 @@
+{
+    "Bucuresti": {
+        "2024-Q4": {
+            "population": 1800000,
+            "active_population_pct": 65,
+            "daily_traffic_total": 1100000,
+            "daily_pedestrian_total": 900000,
+            "modal_split": {
+                "auto": 40,
+                "walking": 25,
+                "cycling": 2,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 12,
+            "description": "Capitala Romaniei, cel mai mare centru economic si universitar.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T13:19:08.562607",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 1709458,
+            "county": "Bucuresti",
+            "active_population_pct": 63,
+            "daily_traffic_total": 1100000,
+            "daily_pedestrian_total": 900000,
+            "modal_split": {
+                "auto": 40,
+                "walking": 25,
+                "cycling": 2,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 12,
+            "description": "Capitala Romaniei, cel mai mare centru economic si universitar.",
+            "source": "User Input",
+            "last_updated": "2025-12-05T08:16:36.838969",
+            "update_preference": "manual"
+        }
+    },
+    "Cluj-Napoca": {
+        "2024-Q4": {
+            "population": 330000,
+            "active_population_pct": 60,
+            "daily_traffic_total": 200000,
+            "daily_pedestrian_total": 255000,
+            "modal_split": {
+                "auto": 37,
+                "walking": 24,
+                "cycling": 5,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru universitar major, trafic congestionat pe axa Est-Vest.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:05:45.639993",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 330000,
+            "active_population_pct": 60,
+            "daily_traffic_total": 200000,
+            "daily_pedestrian_total": 255000,
+            "modal_split": {
+                "auto": 37,
+                "walking": 24,
+                "cycling": 5,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru universitar major, trafic congestionat pe axa Est-Vest.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:47.686878",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Timisoara": {
+        "2024-Q4": {
+            "population": 250000,
+            "active_population_pct": 62,
+            "daily_traffic_total": 180000,
+            "daily_pedestrian_total": 200000,
+            "modal_split": {
+                "auto": 38,
+                "walking": 23,
+                "cycling": 5,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 9,
+            "description": "Pol economic important in Vest, trafic intens.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T13:18:08.154138",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 250000,
+            "active_population_pct": 62,
+            "daily_traffic_total": 180000,
+            "daily_pedestrian_total": 200000,
+            "modal_split": {
+                "auto": 38,
+                "walking": 23,
+                "cycling": 5,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 9,
+            "description": "Pol economic important in Vest, trafic intens.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.680822",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Iasi": {
+        "2024-Q4": {
+            "population": 271000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 160000,
+            "daily_pedestrian_total": 190000,
+            "modal_split": {
+                "auto": 35,
+                "walking": 26,
+                "cycling": 4,
+                "public_transport": 35
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru cultural si universitar in Nord-Est.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:06:35.357573",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 271000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 160000,
+            "daily_pedestrian_total": 190000,
+            "modal_split": {
+                "auto": 35,
+                "walking": 26,
+                "cycling": 4,
+                "public_transport": 35
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru cultural si universitar in Nord-Est.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.677847",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Constanta": {
+        "2024-Q4": {
+            "population": 263000,
+            "active_population_pct": 55,
+            "daily_traffic_total": 150000,
+            "daily_pedestrian_total": 180000,
+            "modal_split": {
+                "auto": 42,
+                "walking": 28,
+                "cycling": 3,
+                "public_transport": 27
+            },
+            "avg_commute_distance_km": 10,
+            "description": "Principalul port la Marea Neagra, trafic sezonier ridicat.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.671720",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 263000,
+            "active_population_pct": 55,
+            "daily_traffic_total": 150000,
+            "daily_pedestrian_total": 180000,
+            "modal_split": {
+                "auto": 42,
+                "walking": 28,
+                "cycling": 3,
+                "public_transport": 27
+            },
+            "avg_commute_distance_km": 10,
+            "description": "Principalul port la Marea Neagra, trafic sezonier ridicat.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.671720",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Brasov": {
+        "2024-Q4": {
+            "population": 237000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 140000,
+            "daily_pedestrian_total": 170000,
+            "modal_split": {
+                "auto": 36,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 7,
+            "description": "Centru turistic si industrial major.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:05:31.344955",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 237000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 140000,
+            "daily_pedestrian_total": 170000,
+            "modal_split": {
+                "auto": 36,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 7,
+            "description": "Centru turistic si industrial major.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T13:04:46.433388",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Craiova": {
+        "2024-Q4": {
+            "population": 234000,
+            "active_population_pct": 55,
+            "daily_traffic_total": 130000,
+            "daily_pedestrian_total": 150000,
+            "modal_split": {
+                "auto": 34,
+                "walking": 29,
+                "cycling": 3,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial in Sud-Vest.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:06:11.273992",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 234000,
+            "active_population_pct": 55,
+            "daily_traffic_total": 130000,
+            "daily_pedestrian_total": 150000,
+            "modal_split": {
+                "auto": 34,
+                "walking": 29,
+                "cycling": 3,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial in Sud-Vest.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.674336",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Galati": {
+        "2024-Q4": {
+            "population": 217000,
+            "active_population_pct": 52,
+            "daily_traffic_total": 110000,
+            "daily_pedestrian_total": 130000,
+            "modal_split": {
+                "auto": 32,
+                "walking": 31,
+                "cycling": 3,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 7,
+            "description": "Port la Dunare, trafic fluid.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:06:39.306422",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 217000,
+            "active_population_pct": 52,
+            "daily_traffic_total": 110000,
+            "daily_pedestrian_total": 130000,
+            "modal_split": {
+                "auto": 32,
+                "walking": 31,
+                "cycling": 3,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 7,
+            "description": "Port la Dunare, trafic fluid.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.675526",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Oradea": {
+        "2024-Q4": {
+            "population": 183000,
+            "active_population_pct": 60,
+            "daily_traffic_total": 100000,
+            "daily_pedestrian_total": 120000,
+            "modal_split": {
+                "auto": 33,
+                "walking": 28,
+                "cycling": 6,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 6,
+            "description": "Oras in dezvoltare rapida, trafic bine gestionat.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:06:37.337890",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 183000,
+            "active_population_pct": 60,
+            "daily_traffic_total": 100000,
+            "daily_pedestrian_total": 120000,
+            "modal_split": {
+                "auto": 33,
+                "walking": 28,
+                "cycling": 6,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 6,
+            "description": "Oras in dezvoltare rapida, trafic bine gestionat.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T12:52:48.678618",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Ploiesti": {
+        "2024-Q4": {
+            "population": 180000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 26,
+                "cycling": 2,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-01T20:06:39.300182",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        },
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T22:16:58.816293",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        }
+    },
+    "Hunedoara": {
+        "2025-Q4": {
+            "population": 180000,
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 26,
+                "cycling": 2,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "Public",
+            "last_updated": "2025-12-05T13:59:35.117550",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Ciorogarla": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "Ilfov",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 26,
+                "cycling": 2,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "Public",
+            "last_updated": "2025-12-06T20:06:37.224470",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Targoviste": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 25,
+                "cycling": 3,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input",
+            "last_updated": "2025-12-02T12:57:44.916515",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Sibiu": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T13:06:12.170842",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Satu Mare": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T13:15:55.193882",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Baia Mare": {
+        "2025-Q4": {
+            "population": 200000,
+            "active_population_pct": 56,
+            "daily_traffic_total": 105000,
+            "daily_pedestrian_total": 125000,
+            "modal_split": {
+                "auto": 32,
+                "walking": 29,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 6,
+            "description": "Date extrapolate bazate pe populatia de 200,000 locuitori.",
+            "last_updated": "2025-12-02T13:19:36.969439",
+            "source": "User Input / Extrapolation",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Suceava": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T13:22:32.783297",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Piatra Neamt": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "User Input / Extrapolation",
+            "last_updated": "2025-12-02T13:24:17.697479",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Bacau": {
+        "2025-Q4": {
+            "population": 180000,
+            "county": "",
+            "active_population_pct": 58,
+            "daily_traffic_total": 120000,
+            "daily_pedestrian_total": 110000,
+            "modal_split": {
+                "auto": 39,
+                "walking": 24,
+                "cycling": 4,
+                "public_transport": 33
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Centru industrial, nod rutier important.",
+            "source": "Public",
+            "last_updated": "2025-12-07T18:00:47.011129",
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Bucuresti Sector 3": {
+        "2025-Q4": {
+            "population": 480442,
+            "county": "Bucuresti",
+            "active_population_pct": 63,
+            "daily_traffic_total": 150000,
+            "daily_pedestrian_total": 180000,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 300,000",
+            "source": "Public",
+            "last_updated": "2025-12-06T20:07:48.913915",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Ilfov": {
+        "2025-Q4": {
+            "population": 604061,
+            "county": "Ilfov",
+            "active_population_pct": 64,
+            "daily_traffic_total": 302030,
+            "daily_pedestrian_total": 362436,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 604,061",
+            "source": "User Input",
+            "last_updated": "2025-12-05T08:13:05.755765",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Bucuresti - Ilfov": {
+        "2025-Q4": {
+            "population": 2313519,
+            "county": "Bucuresti - Ilfov",
+            "active_population_pct": 61,
+            "daily_traffic_total": 1156759,
+            "daily_pedestrian_total": 1388111,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 2,313,519",
+            "source": "User Input",
+            "last_updated": "2025-12-05T08:14:15.072684",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Mogosoaia": {
+        "2025-Q4": {
+            "population": 10043,
+            "county": "Ilfov",
+            "active_population_pct": 62,
+            "daily_traffic_total": 5021,
+            "daily_pedestrian_total": 6025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 10,043",
+            "source": "User Input",
+            "last_updated": "2025-12-05T08:21:07.697622",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Chitila": {
+        "2025-Q4": {
+            "population": 16183,
+            "county": "Ilfov",
+            "active_population_pct": 68,
+            "daily_traffic_total": 8091,
+            "daily_pedestrian_total": 9709,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 16,183",
+            "source": "Public",
+            "last_updated": "2025-12-09T14:00:46.058478",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    },
+    "Bucuresti Sector 1": {
+        "2025-Q4": {
+            "population": 264662,
+            "county": "Bucuresti",
+            "active_population_pct": 60,
+            "daily_traffic_total": 132331,
+            "daily_pedestrian_total": 158797,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 264,662",
+            "source": "User Input",
+            "last_updated": "2025-12-05T08:29:48.374603",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2025-Q4"
+        }
+    }
+}
