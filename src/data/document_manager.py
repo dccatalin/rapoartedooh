@@ -7,7 +7,7 @@ import datetime
 import uuid
 from typing import List, Dict, Optional
 from src.data.db_config import SessionLocal
-from src.data.models import Document, Vehicle
+from src.data.models import Document, Vehicle, Driver
 
 class DocumentManager:
     """Manages documents for vehicles and drivers with file upload support"""
@@ -93,6 +93,8 @@ class DocumentManager:
             # Sync with vehicle if applicable
             if entity_type == 'vehicle' and expiry_date:
                 self._sync_vehicle_expiry(session, entity_id, document_type, expiry_date)
+            elif entity_type == 'driver' and expiry_date:
+                self._sync_driver_expiry(session, entity_id, document_type, expiry_date)
                 
             return doc.id
             
@@ -198,6 +200,8 @@ class DocumentManager:
             # Sync with vehicle if applicable
             if doc.entity_type == 'vehicle' and doc.expiry_date:
                 self._sync_vehicle_expiry(session, doc.entity_id, doc.document_type, doc.expiry_date)
+            elif doc.entity_type == 'driver' and doc.expiry_date:
+                self._sync_driver_expiry(session, doc.entity_id, doc.document_type, doc.expiry_date)
                 
             return True
             
@@ -359,3 +363,28 @@ class DocumentManager:
                     print(f"Synced {doc_type} expiry ({expiry_date}) to vehicle {vehicle.registration}")
         except Exception as e:
             print(f"Error syncing expiry: {e}")
+
+    def _sync_driver_expiry(self, session, driver_id: str, doc_type: str, expiry_date: datetime.date):
+        """Sync document expiry date back to the Driver record"""
+        try:
+            # Map document types to driver fields
+            mapping = {
+                'Carte Identitate': 'identity_card_expiry',
+                'Medicina Muncii': 'medical_exam_expiry',
+                'Aviz Psihologic': 'psychological_exam_expiry'
+            }
+            
+            field_name = mapping.get(doc_type)
+            if not field_name:
+                return
+            
+            driver = session.query(Driver).filter(Driver.id == driver_id).first()
+            if driver:
+                # Only update if the new expiry is later or if current is None
+                current_expiry = getattr(driver, field_name)
+                if current_expiry is None or expiry_date > current_expiry:
+                    setattr(driver, field_name, expiry_date)
+                    session.commit()
+                    print(f"Synced {doc_type} expiry ({expiry_date}) to driver {driver.name}")
+        except Exception as e:
+            print(f"Error syncing driver expiry: {e}")

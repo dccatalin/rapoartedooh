@@ -59,6 +59,11 @@ class Driver(Base):
     license_number = Column(String(50))
     status = Column(String(20), default='active')
     assigned_vehicle_id = Column(String(36), nullable=True)
+    
+    identity_card_expiry = Column(Date, nullable=True)
+    medical_exam_expiry = Column(Date, nullable=True)
+    psychological_exam_expiry = Column(Date, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.now)
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

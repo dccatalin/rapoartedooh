@@ -51,6 +51,11 @@ class DriverManager:
             'status_history': s_history,
             'assigned_vehicle': assigned_vehicle_id,
             'assignment_history': history,
+            
+            'identity_card_expiry': driver.identity_card_expiry.isoformat() if driver.identity_card_expiry else None,
+            'medical_exam_expiry': driver.medical_exam_expiry.isoformat() if driver.medical_exam_expiry else None,
+            'psychological_exam_expiry': driver.psychological_exam_expiry.isoformat() if driver.psychological_exam_expiry else None,
+            
             'created': driver.created_at.isoformat() if driver.created_at else None,
             'last_modified': driver.last_modified.isoformat() if driver.last_modified else None
         }
@@ -127,7 +132,10 @@ class DriverManager:
         license_number: Optional[str] = None,
         status: Optional[str] = None,
         status_note: Optional[str] = None,
-        status_date: Optional[datetime.datetime] = None
+        status_date: Optional[datetime.datetime] = None,
+        identity_card_expiry: Optional[datetime.date] = None,
+        medical_exam_expiry: Optional[datetime.date] = None,
+        psychological_exam_expiry: Optional[datetime.date] = None
     ) -> bool:
         """Update driver information"""
         session = SessionLocal()
@@ -143,8 +151,16 @@ class DriverManager:
                 driver.phone = phone
             if license_number is not None:
                 driver.license_number = license_number
+            if identity_card_expiry is not None:
+                driver.identity_card_expiry = identity_card_expiry
+            if medical_exam_expiry is not None:
+                driver.medical_exam_expiry = medical_exam_expiry
+            if psychological_exam_expiry is not None:
+                driver.psychological_exam_expiry = psychological_exam_expiry
+
             if status is not None:
-                if status != driver.status:
+                old_status = driver.status
+                if status != old_status:
                     sh = DriverStatusHistory(
                         driver_id=driver_id,
                         status=status,
@@ -152,6 +168,31 @@ class DriverManager:
                         note=status_note or f"Status changed to {status}"
                     )
                     session.add(sh)
+                    
+                    # Automated Schedule Management
+                    from src.data.models import DriverSchedule
+                    
+                    # 1. Delete future/unclosed events of the OLD status if we are moving to active
+                    if status == 'active':
+                        # Deleting overlapping future events of specific types (vacation, medical, inactive)
+                        session.query(DriverSchedule).filter(
+                            DriverSchedule.driver_id == driver_id,
+                            DriverSchedule.event_type.in_(['vacation', 'medical', 'inactive'])
+                        ).delete(synchronize_session=False)
+                    
+                    # 2. Add unclosed event for the NEW status if not active
+                    if status in ['vacation', 'medical', 'inactive']:
+                        event_date = (status_date or datetime.datetime.now()).date()
+                        # If moving to a non-active state, create a "Driver Event"
+                        schedule = DriverSchedule(
+                            driver_id=driver_id,
+                            start_date=event_date,
+                            end_date=datetime.date(2099, 12, 31), # "Unclosed"
+                            event_type=status,
+                            details=status_note or f"Status change: {status}"
+                        )
+                        session.add(schedule)
+
                 driver.status = status
             
             session.commit()
@@ -249,16 +290,81 @@ class DriverManager:
         try:
             driver = session.query(Driver).filter(Driver.id == driver_id).first()
             if driver:
+                # Sort by start date desc
+                hists = session.query(DriverAssignmentHistory).filter(
+                    DriverAssignmentHistory.driver_id == driver_id
+                ).order_by(DriverAssignmentHistory.start_date.desc()).all()
+                
                 return [
                     {
+                        'id': h.id,
                         'vehicle_id': h.vehicle_id,
                         'vehicle_name': h.vehicle_name,
                         'start_date': h.start_date.isoformat() if h.start_date else None,
                         'end_date': h.end_date.isoformat() if h.end_date else None
                     }
-                    for h in driver.assignment_history
+                    for h in hists
                 ]
             return []
+        finally:
+            session.close()
+
+    def add_assignment_history(self, driver_id: str, vehicle_id: str, vehicle_name: str, 
+                               start_date: datetime.datetime, end_date: Optional[datetime.datetime] = None) -> bool:
+        """Manually add an assignment history record"""
+        session = SessionLocal()
+        try:
+            assignment = DriverAssignmentHistory(
+                driver_id=driver_id,
+                vehicle_id=vehicle_id,
+                vehicle_name=vehicle_name,
+                start_date=start_date,
+                end_date=end_date
+            )
+            session.add(assignment)
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error adding assignment history: {e}")
+            return False
+        finally:
+            session.close()
+
+    def update_assignment_history(self, history_id: int, vehicle_id: Optional[str] = None, 
+                                  vehicle_name: Optional[str] = None,
+                                  start_date: Optional[datetime.datetime] = None, 
+                                  end_date: Optional[datetime.datetime] = None) -> bool:
+        """Update an existing assignment history record"""
+        session = SessionLocal()
+        try:
+            h = session.query(DriverAssignmentHistory).filter(DriverAssignmentHistory.id == history_id).first()
+            if h:
+                if vehicle_id is not None: h.vehicle_id = vehicle_id
+                if vehicle_name is not None: h.vehicle_name = vehicle_name
+                if start_date is not None: h.start_date = start_date
+                if end_date is not None: h.end_date = end_date
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error updating assignment history: {e}")
+            return False
+        finally:
+            session.close()
+
+    def delete_assignment_history(self, history_id: int) -> bool:
+        """Delete an assignment history record"""
+        session = SessionLocal()
+        try:
+            session.query(DriverAssignmentHistory).filter(DriverAssignmentHistory.id == history_id).delete()
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error deleting assignment history: {e}")
+            return False
         finally:
             session.close()
     

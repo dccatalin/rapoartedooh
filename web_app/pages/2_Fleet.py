@@ -561,6 +561,24 @@ def driver_tab():
                 status_index = status_options.index(current_status) if current_status in status_options else 0
                 d_stat = d_col1.selectbox(_("Status"), options=status_options, index=status_index, format_func=lambda x: _(x))
                 
+                # Current Vehicle Assignment
+                vehicles = vehicle_manager.get_all_vehicles()
+                v_opts = {v['id']: f"{v['name']} ({v['registration']})" for v in vehicles}
+                v_ids = [None] + list(v_opts.keys())
+                v_names = {None: _("Unassigned")}
+                v_names.update(v_opts)
+                
+                current_veh = dr.get('assigned_vehicle')
+                v_idx = v_ids.index(current_veh) if current_veh in v_ids else 0
+                d_veh = st.selectbox(_("Assigned Vehicle"), options=v_ids, format_func=lambda x: v_names[x], index=v_idx)
+
+                # Expiry dates
+                st.write("**" + _("Document Expiry Dates") + "**")
+                exp_col1, exp_col2, exp_col3 = st.columns(3)
+                d_id_exp = exp_col1.date_input(_("Identity Card"), value=datetime.date.fromisoformat(dr['identity_card_expiry']) if dr.get('identity_card_expiry') else None)
+                d_med_exp = exp_col2.date_input(_("Medical Exam"), value=datetime.date.fromisoformat(dr['medical_exam_expiry']) if dr.get('medical_exam_expiry') else None)
+                d_psy_exp = exp_col3.date_input(_("Psychological Exam"), value=datetime.date.fromisoformat(dr['psychological_exam_expiry']) if dr.get('psychological_exam_expiry') else None)
+
                 # Status change date/time (only show if status is changing)
                 d_status_changed = d_stat != current_status
                 if d_status_changed:
@@ -571,6 +589,10 @@ def driver_tab():
                     d_status_note = st.text_area(_("Note (optional)"), placeholder=_("Reason for status change..."), key="d_status_note")
                 
                 if st.form_submit_button(_("Save Changes")):
+                    # Sync vehicle assignment
+                    if d_veh != current_veh:
+                        driver_manager.assign_to_vehicle(dr_id, d_veh, v_names.get(d_veh) if d_veh else None)
+
                     if d_status_changed:
                         d_eff_datetime = datetime.datetime.combine(
                             st.session_state.get('d_status_date', datetime.date.today()),
@@ -587,7 +609,10 @@ def driver_tab():
                         phone=d_phone, 
                         status=d_stat,
                         status_note=d_note_text,
-                        status_date=d_eff_datetime
+                        status_date=d_eff_datetime,
+                        identity_card_expiry=d_id_exp,
+                        medical_exam_expiry=d_med_exp,
+                        psychological_exam_expiry=d_psy_exp
                     )
                     
                     if res:
@@ -600,14 +625,191 @@ def driver_tab():
 
             # --- Status History ---
             st.markdown("#### 📜 " + _("Status History"))
-            d_history = driver_manager.get_status_history(dr_id)
-            if d_history:
-                df_dh = pd.DataFrame(d_history)
-                df_dh['status'] = df_dh['status'].apply(lambda x: _(x))
-                df_dh = df_dh.sort_values('date', ascending=False)
-                st.table(df_dh)
+            history = driver_manager.get_status_history(dr_id)
+            if history:
+                for h in sorted(history, key=lambda x: x['date'], reverse=True):
+                    with st.container(border=True):
+                        h_col1, h_col2, h_col3 = st.columns([2, 4, 1.5])
+                        h_col1.write(f"**{_(h['status'])}**")
+                        h_col1.caption(f"📅 {h['date'][:16].replace('T', ' ')}")
+                        
+                        if h.get('note'):
+                            h_col2.write(h['note'])
+                        
+                        col_edit, col_del = h_col3.columns(2)
+                        
+                        if col_edit.button("✏️", key=f"edit_dh_{h['id']}"):
+                            st.session_state.editing_driver_history = h['id']
+                            st.rerun()
+                            
+                        if col_del.button("🗑️", key=f"del_dh_{h['id']}"):
+                            from src.data.db_config import SessionLocal
+                            from src.data.models import DriverStatusHistory, Driver
+                            session = SessionLocal()
+                            try:
+                                session.query(DriverStatusHistory).filter(DriverStatusHistory.id == h['id']).delete()
+                                # Update current status to the one before if we just deleted the latest
+                                remaining_history = session.query(DriverStatusHistory).filter(
+                                    DriverStatusHistory.driver_id == dr_id
+                                ).order_by(DriverStatusHistory.date.desc()).first()
+                                
+                                driver = session.query(Driver).filter(Driver.id == dr_id).first()
+                                if driver:
+                                    if remaining_history:
+                                        driver.status = remaining_history.status
+                                    else:
+                                        driver.status = 'active'
+                                    session.commit()
+                                st.success(_("History entry deleted!"))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Failed to delete: {e}")
+                                session.rollback()
+                            finally:
+                                session.close()
+
+                # Edit form for history entry
+                if st.session_state.get('editing_driver_history'):
+                    edit_h_id = st.session_state.editing_driver_history
+                    edit_entry = next((h for h in history if h.get('id') == edit_h_id), None)
+                    
+                    if edit_entry:
+                        st.markdown("---")
+                        st.write("**" + _("Edit Status History Entry") + "**")
+                        with st.form("edit_driver_history_form"):
+                            status_options = ["active", "vacation", "medical", "inactive"]
+                            eh_col1, eh_col2 = st.columns(2)
+                            eh_status = eh_col1.selectbox(_("Status"), status_options, 
+                                                         index=status_options.index(edit_entry['status']) if edit_entry['status'] in status_options else 0,
+                                                         format_func=lambda x: _(x))
+                            
+                            try:
+                                existing_dt = datetime.datetime.fromisoformat(str(edit_entry['date']))
+                                eh_date = existing_dt.date()
+                                eh_time = existing_dt.time()
+                            except:
+                                eh_date = datetime.date.today()
+                                eh_time = datetime.datetime.now().time()
+                            
+                            eh_date_input = eh_col1.date_input(_("Date"), value=eh_date)
+                            eh_time_input = eh_col2.time_input(_("Time"), value=eh_time)
+                            eh_note = st.text_area(_("Note"), value=edit_entry.get('note', ''))
+                            
+                            ecol1, ecol2 = st.columns(2)
+                            if ecol1.form_submit_button(_("💾 Save")):
+                                from src.data.db_config import SessionLocal
+                                from src.data.models import DriverStatusHistory
+                                session = SessionLocal()
+                                try:
+                                    entry_to_update = session.query(DriverStatusHistory).filter(
+                                        DriverStatusHistory.id == edit_h_id
+                                    ).first()
+                                    if entry_to_update:
+                                        entry_to_update.status = eh_status
+                                        entry_to_update.date = datetime.datetime.combine(eh_date_input, eh_time_input)
+                                        entry_to_update.note = eh_note
+                                        session.commit()
+                                        st.success(_("History updated!"))
+                                        del st.session_state.editing_driver_history
+                                        st.rerun()
+                                except Exception as e:
+                                    st.error(f"Failed to update: {e}")
+                                    session.rollback()
+                                finally:
+                                    session.close()
+                            
+                            if ecol2.form_submit_button(_("❌ Cancel")):
+                                del st.session_state.editing_driver_history
+                                st.rerun()
             else:
                 st.info("No status history yet.")
+
+            # --- Assignment History ---
+            st.markdown("#### 🚛 " + _("Assignment History"))
+            a_history = driver_manager.get_driver_history(dr_id)
+            if a_history:
+                for ah in a_history:
+                    with st.container(border=True):
+                        ah_col1, ah_col2, ah_col3 = st.columns([3, 4, 1.5])
+                        ah_col1.write(f"**{ah['vehicle_name']}**")
+                        ah_col2.write(f"{ah['start_date'][:16].replace('T', ' ')} → {ah['end_date'][:16].replace('T', ' ') if ah['end_date'] else _('Present')}")
+                        
+                        col_edit, col_del = ah_col3.columns(2)
+                        if col_edit.button("✏️", key=f"edit_ah_{ah['id']}"):
+                            st.session_state.editing_assignment_history = ah['id']
+                            st.rerun()
+                        if col_del.button("🗑️", key=f"del_ah_{ah['id']}"):
+                            if driver_manager.delete_assignment_history(ah['id']):
+                                st.success(_("Record deleted!"))
+                                st.rerun()
+            else:
+                st.info(_("No assignment history yet."))
+            
+            # Add History Entry
+            with st.expander("➕ " + _("Add Historical Assignment")):
+                with st.form("add_assignment_history_form"):
+                    vehicles = vehicle_manager.get_all_vehicles()
+                    v_opts = {v['id']: f"{v['name']} ({v['registration']})" for v in vehicles}
+                    ah_vid = st.selectbox(_("Vehicle"), options=list(v_opts.keys()), format_func=lambda x: v_opts[x])
+                    
+                    ah_c1, ah_c2 = st.columns(2)
+                    ah_s_d = ah_c1.date_input(_("Start Date"), value=datetime.date.today())
+                    ah_s_t = ah_c1.time_input(_("Start Time"), value=datetime.time(8, 0))
+                    ah_e_d = ah_c2.date_input(_("End Date"), value=None)
+                    ah_e_t = ah_c2.time_input(_("End Time"), value=datetime.time(18, 0))
+                    
+                    if st.form_submit_button(_("Add Record")):
+                        start_dt = datetime.datetime.combine(ah_s_d, ah_s_t)
+                        end_dt = datetime.datetime.combine(ah_e_d, ah_e_t) if ah_e_d else None
+                        if driver_manager.add_assignment_history(dr_id, ah_vid, v_opts[ah_vid], start_dt, end_dt):
+                            st.success(_("Historical record added!"))
+                            st.rerun()
+
+            # Edit Assignment History Entry
+            if st.session_state.get('editing_assignment_history'):
+                edit_ah_id = st.session_state.editing_assignment_history
+                edit_ah_entry = next((ah for ah in a_history if ah.get('id') == edit_ah_id), None)
+                if edit_ah_entry:
+                    st.markdown("---")
+                    st.write("**" + _("Edit Assignment") + "**")
+                    with st.form("edit_assignment_history_form"):
+                        vehicles = vehicle_manager.get_all_vehicles()
+                        v_opts = {v['id']: f"{v['name']} ({v['registration']})" for v in vehicles}
+                        eah_vid = st.selectbox(_("Vehicle"), options=list(v_opts.keys()), index=list(v_opts.keys()).index(edit_ah_entry['vehicle_id']) if edit_ah_entry['vehicle_id'] in v_opts else 0, format_func=lambda x: v_opts[x])
+                        
+                        try:
+                            s_dt = datetime.datetime.fromisoformat(edit_ah_entry['start_date'])
+                            ah_s_d = s_dt.date()
+                            ah_s_t = s_dt.time()
+                        except:
+                            ah_s_d = datetime.date.today()
+                            ah_s_t = datetime.time(8, 0)
+                            
+                        try:
+                            e_dt = datetime.datetime.fromisoformat(edit_ah_entry['end_date']) if edit_ah_entry['end_date'] else None
+                            ah_e_d = e_dt.date() if e_dt else None
+                            ah_e_t = e_dt.time() if e_dt else datetime.time(18, 0)
+                        except:
+                            ah_e_d = None
+                            ah_e_t = datetime.time(18, 0)
+
+                        eah_c1, eah_c2 = st.columns(2)
+                        eah_s_d = eah_c1.date_input(_("Start Date"), value=ah_s_d)
+                        eah_s_t = eah_c1.time_input(_("Start Time"), value=ah_s_t)
+                        eah_e_d = eah_c2.date_input(_("End Date"), value=ah_e_d)
+                        eah_e_t = eah_c2.time_input(_("End Time"), value=ah_e_t)
+                        
+                        aec1, aec2 = st.columns(2)
+                        if aec1.form_submit_button(_("💾 Save Assignment")):
+                            start_dt = datetime.datetime.combine(eah_s_d, eah_s_t)
+                            end_dt = datetime.datetime.combine(eah_e_d, eah_e_t) if eah_e_d else None
+                            if driver_manager.update_assignment_history(edit_ah_id, vehicle_id=eah_vid, vehicle_name=v_opts[eah_vid], start_date=start_dt, end_date=end_dt):
+                                st.success(_("Record updated!"))
+                                del st.session_state.editing_assignment_history
+                                st.rerun()
+                        if aec2.form_submit_button(_("❌ Cancel")):
+                            del st.session_state.editing_assignment_history
+                            st.rerun()
 
             # --- Leave & Schedule Management ---
             st.markdown("#### " + _("Leave & Schedule Management"))
