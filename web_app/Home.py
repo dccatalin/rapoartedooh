@@ -28,12 +28,13 @@ def main():
     st.title(_("Mobile DOOH Management"))
     
     # Debug Info for Database
+    import os as _os
     from src.data.db_config import DB_PATH
     if st.sidebar.checkbox("Show Debug Info", value=False):
         st.sidebar.write(f"DB Path: `{DB_PATH}`")
-        st.sidebar.write(f"DB Exists: `{os.path.exists(DB_PATH)}`")
-        if os.path.exists(DB_PATH):
-            st.sidebar.write(f"DB Size: `{os.path.getsize(DB_PATH)}` bytes")
+        st.sidebar.write(f"DB Exists: `{_os.path.exists(DB_PATH)}`")
+        if _os.path.exists(DB_PATH):
+            st.sidebar.write(f"DB Size: `{_os.path.getsize(DB_PATH)}` bytes")
     st.subheader(_("Dashboard Overview"))
 
     # Initialize Managers

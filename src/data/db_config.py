@@ -10,25 +10,32 @@ DB_FOLDER = os.path.join(BASE_DIR, 'data')
 ORIGINAL_DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
 
 # Robust path detection for Streamlit Cloud
-IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_RUNTIME_ENV') is not None
+# STREAMLIT_SHARING is a reliable indicator on Streamlit Cloud
+IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SHARING') == 'true' or os.environ.get('STREAMLIT_RUNTIME_ENV') is not None
 
 if IS_STREAMLIT_CLOUD:
-    # On Streamlit Cloud, the repo is often read-only. 
-    # We copy the DB to /tmp to make it writable and allowed to create journals.
-    TEMP_DB_PATH = "/tmp/rapoartedooh.db"
+    # On Streamlit Cloud, the repo is read-only. 
+    # We copy the DB to /tmp to make it writable and allow it to create journals.
+    # Using a unique name to avoid collisions if multiple apps on same machine (unlikely but safe)
+    TEMP_DB_PATH = "/tmp/rapoartedooh_writable.db"
     
-    # Try to copy the original DB to /tmp if it exists and hasn't been copied yet
+    # Try to copy the original DB to /tmp
     if os.path.exists(ORIGINAL_DB_PATH):
         try:
-            # We copy it every time to ensure we have the latest data from GitHub on reboot
-            # but only if it's not already there or if we want to reset
-            shutil.copy2(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+            # We copy it to ensure we have the latest data from GitHub on each reboot
+            # or if it doesn't exist yet in /tmp
+            if not os.path.exists(TEMP_DB_PATH) or os.path.getmtime(ORIGINAL_DB_PATH) > os.path.getmtime(TEMP_DB_PATH):
+                shutil.copy2(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+                # Ensure permissions are writable
+                os.chmod(TEMP_DB_PATH, 0o666)
             DB_PATH = TEMP_DB_PATH
-            print(f"DEBUG: Copied database to {DB_PATH}")
+            print(f"DEBUG: Using writable database at {DB_PATH}")
         except Exception as e:
             print(f"DEBUG: Failed to copy DB to /tmp: {e}")
             DB_PATH = ORIGINAL_DB_PATH
     else:
+        # If original doesn't exist, we'll hit errors anyway, 
+        # but let's point to /tmp just in case init_db can create it
         DB_PATH = TEMP_DB_PATH
 else:
     DB_PATH = ORIGINAL_DB_PATH
@@ -45,7 +52,9 @@ ENGINE_ARGS = {
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL") # WAL is often better for concurrent reads/writes
+        # WAL mode requires write access to the directory
+        # If we are in /tmp, this should work.
+        cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
@@ -82,6 +91,7 @@ except (ImportError, Exception):
 def init_db():
     """Initialize the database (create tables)"""
     import src.data.models  # Import models to register them with Base
+    # metadata.create_all is safe to call even if tables exist
     Base.metadata.create_all(bind=engine)
 
 def get_db():
