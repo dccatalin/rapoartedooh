@@ -698,6 +698,21 @@ def campaign_form(edit_id=None):
                 options=all_cities, 
                 default=existing_data.get('cities', [])
             )
+            
+            # Add New City Quick Form (Shared Mode)
+            with st.expander("➕ " + _("Add New City")):
+                with st.form("new_city_shared"):
+                    nc_name = st.text_input(_("City Name"), key="nc_name_shared")
+                    nc_pop = st.number_input(_("Population"), min_value=0, value=10000, key="nc_pop_shared")
+                    if st.form_submit_button(_("Add City")):
+                        if nc_name:
+                            base_data = city_manager.extrapolate_city_data(nc_name, nc_pop)
+                            city_manager.add_city(nc_name, base_data)
+                            st.success(_("City") + f" {nc_name} " + _("added!"))
+                            st.rerun()
+                        else:
+                            st.error(_("Name is required."))
+
             selected_cities_union = selected_cities
             
             if selected_cities:
@@ -734,6 +749,20 @@ def campaign_form(edit_id=None):
                     v_data_periods = existing_data.get('city_periods', {}).get(v_id, {})
                     v_selected_cities = list(v_data_periods.keys()) if isinstance(v_data_periods, dict) else []
                     v_cities = st.multiselect(_("Cities for") + f" {v_name}", options=all_cities, default=v_selected_cities, key=f"v_cities_{v_id}")
+                    
+                    # Add New City Quick Form (Individual Mode)
+                    with st.expander("➕ " + _("Add New City")):
+                        with st.form(f"new_city_{v_id}"):
+                            nc_name = st.text_input(_("City Name"), key=f"nc_name_{v_id}")
+                            nc_pop = st.number_input(_("Population"), min_value=0, value=10000, key=f"nc_pop_{v_id}")
+                            if st.form_submit_button(_("Add City")):
+                                if nc_name:
+                                    base_data = city_manager.extrapolate_city_data(nc_name, nc_pop)
+                                    city_manager.add_city(nc_name, base_data)
+                                    st.success(_("City") + f" {nc_name} " + _("added!"))
+                                    st.rerun()
+                                else:
+                                    st.error(_("Name is required."))
                     
                     if v_cities:
                         city_periods[v_id] = {}
