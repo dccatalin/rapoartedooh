@@ -2,6 +2,12 @@ import os
 import sys
 import streamlit as st
 import datetime
+
+# Add project root to sys.path immediately
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+
 from src.utils.i18n import _
 
 def init_path():
