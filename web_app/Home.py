@@ -11,6 +11,10 @@ utils.inject_custom_css()
 from src.data.campaign_storage import CampaignStorage
 from src.data.vehicle_manager import VehicleManager
 from src.data.driver_manager import DriverManager
+from src.data.db_config import init_db
+
+# Ensure DB is initialized
+init_db()
 
 def main():
     st.title(_("Mobile DOOH Management"))
