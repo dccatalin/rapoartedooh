@@ -11,15 +11,6 @@ root_dir = utils.init_path()
 utils.set_page_config("Fleet Management", "🚚")
 utils.inject_custom_css()
 
-# Imports - using importlib for development reloads
-from src.data import models as models_mod
-from src.data import vehicle_manager as vm_mod
-from src.data import driver_manager as dm_mod
-
-importlib.reload(models_mod)
-importlib.reload(vm_mod)
-importlib.reload(dm_mod)
-
 from src.data.vehicle_manager import VehicleManager
 from src.data.driver_manager import DriverManager
 from src.data.document_manager import DocumentManager

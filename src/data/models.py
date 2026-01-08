@@ -68,7 +68,7 @@ class Driver(Base):
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     # Relationships
-    assigned_vehicle_rel = relationship("src.data.models.Vehicle", back_populates="driver", foreign_keys="[src.data.models.Vehicle.driver_id]", uselist=False)
+    assigned_vehicle_rel = relationship("Vehicle", back_populates="driver", foreign_keys="Vehicle.driver_id", uselist=False)
     assignment_history = relationship(DriverAssignmentHistory, back_populates="driver", cascade="all, delete-orphan")
     status_history = relationship(DriverStatusHistory, back_populates="driver", cascade="all, delete-orphan")
     schedules = relationship("DriverSchedule", back_populates="driver", cascade="all, delete-orphan")
@@ -97,7 +97,7 @@ class Vehicle(Base):
 
     # Relationships
     status_history = relationship(VehicleStatusHistory, back_populates="vehicle", cascade="all, delete-orphan")
-    driver = relationship(Driver, back_populates="assigned_vehicle_rel", foreign_keys=[driver_id])
+    driver = relationship("Driver", back_populates="assigned_vehicle_rel", foreign_keys=[driver_id])
     schedules = relationship("VehicleSchedule", back_populates="vehicle", cascade="all, delete-orphan")
     maintenance_records = relationship("MaintenanceRecord", back_populates="vehicle", cascade="all, delete-orphan")
 
