@@ -9,6 +9,18 @@ utils.set_page_config("Dashboard", "📊")
 utils.inject_custom_css()
 
 # Import Managers (NOW that path is initialized)
+# Import Managers (NOW that path is initialized)
+from src.data import models as models_mod
+from src.data import campaign_storage as cs_mod
+from src.data import vehicle_manager as vm_mod
+from src.data import driver_manager as dm_mod
+import importlib
+
+importlib.reload(models_mod)
+importlib.reload(cs_mod)
+importlib.reload(vm_mod)
+importlib.reload(dm_mod)
+
 from src.data.campaign_storage import CampaignStorage
 from src.data.vehicle_manager import VehicleManager
 from src.data.driver_manager import DriverManager

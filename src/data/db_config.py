@@ -89,10 +89,40 @@ except (ImportError, Exception):
     Base = declarative_base()
 
 def init_db():
-    """Initialize the database (create tables)"""
+    """Initialize the database (create tables and migrate columns)"""
     import src.data.models  # Import models to register them with Base
     # metadata.create_all is safe to call even if tables exist
     Base.metadata.create_all(bind=engine)
+    
+    # Auto-migration for missing columns (robust for Streamlit Cloud)
+    try:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Check drivers table
+        cursor.execute("PRAGMA table_info(drivers)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        new_cols = [
+            ("identity_card_expiry", "DATE"),
+            ("medical_exam_expiry", "DATE"),
+            ("psychological_exam_expiry", "DATE"),
+            ("email", "VARCHAR(100)")
+        ]
+        
+        for col_name, col_type in new_cols:
+            if col_name not in columns:
+                try:
+                    print(f"Auto-migrating: Adding {col_name} to drivers table")
+                    cursor.execute(f"ALTER TABLE drivers ADD COLUMN {col_name} {col_type}")
+                except Exception as e:
+                    print(f"Error adding column {col_name}: {e}")
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Auto-migration error: {e}")
 
 def get_db():
     """Dependency for getting DB session"""
