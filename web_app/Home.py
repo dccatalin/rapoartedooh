@@ -14,7 +14,12 @@ from src.data.driver_manager import DriverManager
 from src.data.db_config import init_db
 
 # Ensure DB is initialized
-init_db()
+try:
+    init_db()
+except Exception:
+    # On some cloud environments, the DB might be read-only.
+    # We proceed if it already exists, SQLAlchemy will fail later if write is truly required.
+    pass
 
 def main():
     st.title(_("Mobile DOOH Management"))
