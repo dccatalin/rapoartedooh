@@ -190,8 +190,50 @@ class CityDataManager:
                 
         return history[best_match]
 
-    def get_all_cities(self):
-        return list(self.profiles.keys())
+    def get_all_cities(self, include_archived: bool = False):
+        if include_archived:
+            return list(self.profiles.keys())
+        
+        active_cities = []
+        for city_name, history in self.profiles.items():
+            # Check if city is archived in metadata
+            if not history.get('metadata', {}).get('is_archived', False):
+                active_cities.append(city_name)
+        return active_cities
+
+    def archive_city(self, city_name: str) -> bool:
+        """Archiving a city (soft delete)"""
+        # Normalize search
+        search_name = city_name.lower().strip()
+        real_name = None
+        
+        for name in self.profiles:
+            if name.lower() == search_name:
+                real_name = name
+                break
+        
+        if real_name:
+            if 'metadata' not in self.profiles[real_name]:
+                self.profiles[real_name]['metadata'] = {}
+            self.profiles[real_name]['metadata']['is_archived'] = True
+            return self._save_profiles()
+        return False
+
+    def delete_city(self, city_name: str) -> bool:
+        """Permanently delete a city"""
+        # Normalize search
+        search_name = city_name.lower().strip()
+        real_name = None
+        
+        for name in self.profiles:
+            if name.lower() == search_name:
+                real_name = name
+                break
+        
+        if real_name:
+            del self.profiles[real_name]
+            return self._save_profiles()
+        return False
     
     def extrapolate_city_data(self, city_name, population):
         """

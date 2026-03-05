@@ -51,7 +51,8 @@ class VehicleManager:
             'rovinieta_expiry': vehicle.rovinieta_expiry.isoformat() if vehicle.rovinieta_expiry else None,
             'casco_expiry': vehicle.casco_expiry.isoformat() if vehicle.casco_expiry else None,
             'mileage': vehicle.mileage,
-            'generator_hours': vehicle.generator_hours
+            'generator_hours': vehicle.generator_hours,
+            'is_archived': vehicle.is_archived
         }
     
     def add_vehicle(
@@ -113,11 +114,14 @@ class VehicleManager:
         finally:
             session.close()
     
-    def get_all_vehicles(self) -> List[Dict[str, Any]]:
+    def get_all_vehicles(self, include_archived: bool = False) -> List[Dict[str, Any]]:
         """Get all vehicles"""
         session = SessionLocal()
         try:
-            vehicles = session.query(Vehicle).all()
+            query = session.query(Vehicle)
+            if not include_archived:
+                query = query.filter(Vehicle.is_archived == False)
+            vehicles = query.all()
             return [self._to_dict(v) for v in vehicles]
         finally:
             session.close()
@@ -274,18 +278,55 @@ class VehicleManager:
         finally:
             session.close()
     
-    def delete_vehicle(self, vehicle_id: str, force: bool = False) -> bool:
-        """Delete a vehicle"""
+    def archive_vehicle(self, vehicle_id: str) -> bool:
+        """Archive a vehicle (soft delete)"""
+        session = SessionLocal()
+        try:
+            vehicle = session.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+            if vehicle:
+                vehicle.is_archived = True
+                # Unassign driver if any
+                if vehicle.driver_id:
+                    self.assign_driver(vehicle_id, None)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error archiving vehicle: {e}")
+            return False
+        finally:
+            session.close()
+
+    def delete_vehicle(self, vehicle_id: str, smart: bool = True) -> bool:
+        """Delete a vehicle with optional smart cleanup of references"""
         session = SessionLocal()
         try:
             vehicle = session.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
             if not vehicle:
                 return False
             
-            if not force and vehicle.driver_id:
-                logger.warning(f"Vehicle has assigned driver: {vehicle.driver_name}")
-                # Allow deletion but log warning (matching previous behavior)
+            if smart:
+                # 1. Unassign from ANY driver (sync both ways)
+                from src.data.models import Driver
+                drivers = session.query(Driver).filter(Driver.assigned_vehicle_id == vehicle_id).all()
+                for d in drivers:
+                    d.assigned_vehicle_id = None
                 
+                # 2. Cleanup Campaign references
+                from src.data.models import Campaign
+                campaigns = session.query(Campaign).filter(Campaign.vehicle_id == vehicle_id).all()
+                for c in campaigns:
+                    c.vehicle_id = None
+                
+                # 3. Cleanup Documents
+                from src.data.document_manager import DocumentManager
+                dm = DocumentManager()
+                dm.delete_all_entity_documents('vehicle', vehicle_id)
+                
+                # 4. Clear current driver ID on vehicle (redundant but safe)
+                vehicle.driver_id = None
+            
             session.delete(vehicle)
             session.commit()
             return True

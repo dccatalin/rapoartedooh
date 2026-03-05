@@ -22,7 +22,10 @@ cs = CompanySettings()
 def main():
     st.title(_("City & Event Management"))
     
-    cities = sorted(city_manager.get_all_cities())
+    # --- Sidebar/Filter ---
+    show_archived = st.checkbox(_("Show Archived Cities"), value=False, key="show_archived_cities")
+    
+    cities = sorted(city_manager.get_all_cities(include_archived=show_archived))
     
     # --- Pagination State ---
     if 'city_page' not in st.session_state:
@@ -49,7 +52,16 @@ def main():
         end_idx = min(start_idx + page_size, total_cities)
         paged_cities = cities[start_idx:end_idx]
         
-        selected_city = st.radio(_("Select a city to edit:"), options=paged_cities, label_visibility="collapsed")
+        # Format labels for radio
+        city_options = []
+        for c in paged_cities:
+            profile_meta = city_manager.profiles.get(c, {}).get('metadata', {})
+            is_archived = profile_meta.get('is_archived', False)
+            label = f"📦 {c}" if is_archived else c
+            city_options.append(label)
+        
+        selected_label = st.radio(_("Select a city to edit:"), options=city_options, label_visibility="collapsed")
+        selected_city = selected_label.replace("📦 ", "") if selected_label else None
         
         # Navigation
         c_prev, c_page, c_next = st.columns([1, 2, 1])
@@ -208,11 +220,27 @@ def main():
                                 st.rerun()
                 
                 # Actions
-                col_act2, col_act3 = st.columns(2)
+                st.divider()
+                st.subheader("🛠️ " + _("Actions"))
+                col_act1, col_act2, col_act3 = st.columns(3)
                 
+                # Visual hint if already archived
+                city_meta = city_manager.profiles.get(selected_city, {}).get('metadata', {})
+                is_archived = city_meta.get('is_archived', False)
+                
+                if col_act1.button("📦 " + (_("Unarchive") if is_archived else _("Archive City")), width="stretch"):
+                    # We need an unarchive method or just direct toggle
+                    if is_archived:
+                        city_manager.profiles[selected_city]['metadata']['is_archived'] = False
+                        city_manager._save_profiles()
+                        st.success(_("City unarchived!"))
+                    else:
+                        city_manager.archive_city(selected_city)
+                        st.success(_("City archived!"))
+                    st.rerun()
+
                 if col_act2.button("🔄 " + _("Refresh from Source"), help=_("Fetch latest data based on update mode"), width="stretch"):
                     with st.spinner(_("Refreshing") + f" {selected_city}..."):
-                        # If mode is manual, we force it since user clicked the button
                         res = city_manager.refresh_city_data(selected_city, force=True)
                         if res['success']:
                             st.success(_("Data updated from") + f" {res.get('source', 'API')}!")
@@ -221,10 +249,18 @@ def main():
                             st.error(_("Failed:") + f" {res.get('message')}")
                             
                 if col_act3.button("🗑️ " + _("Delete City"), type="secondary", width="stretch"):
-                    if selected_city in city_manager.profiles:
-                        del city_manager.profiles[selected_city]
-                        city_manager._save_profiles()
-                        st.toast(_("City") + f" {selected_city} " + _("deleted!"))
+                    st.session_state.confirm_delete_city = selected_city
+                
+                if st.session_state.get('confirm_delete_city') == selected_city:
+                    st.warning(_("Permanently delete city") + f" **{selected_city}**?")
+                    c_del1, c_del2 = st.columns(2)
+                    if c_del1.button(_("Yes, Delete"), key=f"confirm_del_city_btn", type="primary", width="stretch"):
+                        if city_manager.delete_city(selected_city):
+                            st.success(_("City deleted!"))
+                            del st.session_state.confirm_delete_city
+                            st.rerun()
+                    if c_del2.button(_("Cancel"), key=f"cancel_del_city", width="stretch"):
+                        del st.session_state.confirm_delete_city
                         st.rerun()
 
 if __name__ == "__main__":

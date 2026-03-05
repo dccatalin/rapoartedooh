@@ -132,6 +132,7 @@ class CampaignStorage:
             'hourly_data': campaign.hourly_data or {},
             'demographics': campaign.demographics or {},
             'locations': campaign.locations or {},
+            'is_archived': campaign.is_archived,
             'created_at': campaign.created_at.isoformat() if campaign.created_at else None,
             'last_modified': campaign.last_modified.isoformat() if campaign.last_modified else None
         }
@@ -229,16 +230,36 @@ class CampaignStorage:
         finally:
             session.close()
         
-    def get_all_campaigns(self) -> List[Dict[str, Any]]:
+    def get_all_campaigns(self, include_archived: bool = False) -> List[Dict[str, Any]]:
         """Get all campaigns, sorted by last modified (newest first)"""
         session = SessionLocal()
         try:
-            campaigns = session.query(Campaign).order_by(Campaign.last_modified.desc()).all()
+            query = session.query(Campaign)
+            if not include_archived:
+                query = query.filter(Campaign.is_archived == False)
+            campaigns = query.order_by(Campaign.last_modified.desc()).all()
             return [self._to_dict(c) for c in campaigns]
         finally:
             session.close()
         
-    def delete_campaign(self, campaign_id: str) -> bool:
+    def archive_campaign(self, campaign_id: str) -> bool:
+        """Archive a campaign (soft delete)"""
+        session = SessionLocal()
+        try:
+            campaign = session.query(Campaign).filter(Campaign.id == campaign_id).first()
+            if campaign:
+                campaign.is_archived = True
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error archiving campaign: {e}")
+            return False
+        finally:
+            session.close()
+
+    def delete_campaign(self, campaign_id: str, smart: bool = True) -> bool:
         """Delete a campaign and all associated spots"""
         session = SessionLocal()
         try:
@@ -251,12 +272,6 @@ class CampaignStorage:
             campaign_name = campaign.campaign_name
             logger.info(f"Attempting to delete campaign: {campaign_name} (ID: {campaign_id})")
             
-            # Check for associated spots (for logging purposes)
-            from src.data.models import CampaignSpot
-            spots = session.query(CampaignSpot).filter(CampaignSpot.campaign_id == campaign_id).all()
-            if spots:
-                logger.info(f"Campaign has {len(spots)} associated spots that will be deleted via CASCADE")
-            
             # Delete campaign (CASCADE will handle spots)
             session.delete(campaign)
             session.commit()
@@ -267,7 +282,6 @@ class CampaignStorage:
         except Exception as e:
             session.rollback()
             logger.error(f"❌ Error deleting campaign {campaign_id}: {type(e).__name__}: {str(e)}")
-            logger.exception("Full traceback:")
             return False
         finally:
             session.close()

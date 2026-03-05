@@ -11,6 +11,7 @@ root_dir = utils.init_path()
 utils.set_page_config("Fleet Management", "🚚")
 utils.inject_custom_css()
 
+
 from src.data.vehicle_manager import VehicleManager
 from src.data.driver_manager import DriverManager
 from src.data.document_manager import DocumentManager
@@ -29,10 +30,13 @@ mnt_manager = MaintenanceManager()
 def vehicle_tab():
     st.subheader("🚛 " + _("Vehicles"))
     
+    v_col1, v_col2 = st.columns([3, 1])
+    show_archived_v = v_col2.checkbox(_("Show Archived"), value=False, key="show_archived_v")
+    
     # Quick Stats
-    vehicles = vehicle_manager.get_all_vehicles()
-    active_v = [v for v in vehicles if v['status'] == 'active']
-    st.info(_("Currently managing") + f" **{len(vehicles)}** " + _("vehicles") + f" (**{len(active_v)}** " + _("active") + ").")
+    vehicles = vehicle_manager.get_all_vehicles(include_archived=show_archived_v)
+    active_v = [v for v in vehicles if v['status'] == 'active' and not v.get('is_archived')]
+    v_col1.info(_("Currently managing") + f" **{len(vehicles)}** " + _("vehicles") + f" (**{len(active_v)}** " + _("active") + ").")
 
     # Add Vehicle Form (Expander)
     with st.expander("➕ " + _("Add New Vehicle")):
@@ -77,8 +81,26 @@ def vehicle_tab():
                     st.session_state.editing_vehicle = vehicle['id']
                 
                 if col5.button("🗑️", key=f"del_veh_{vehicle['id']}"):
-                    if vehicle_manager.delete_vehicle(vehicle['id']):
-                        st.toast(_("Vehicle") + f" {vehicle['name']} " + _("deleted!"))
+                    st.session_state.confirm_delete_vehicle = vehicle['id']
+                
+                # Confirmation UI
+                if st.session_state.get('confirm_delete_vehicle') == vehicle['id']:
+                    st.warning(f"⚠️ " + _("Confirm deletion for") + f" **{vehicle['registration']}**")
+                    c1, c2, c3 = st.columns([1, 1, 1])
+                    if c1.button(_("Archive"), key=f"arch_v_btn_{vehicle['id']}"):
+                        if vehicle_manager.archive_vehicle(vehicle['id']):
+                            st.success(_("Vehicle archived!"))
+                            del st.session_state.confirm_delete_vehicle
+                            st.rerun()
+                    
+                    if c2.button(_("Smart Delete"), key=f"smart_del_v_btn_{vehicle['id']}", type="primary"):
+                        if vehicle_manager.delete_vehicle(vehicle['id'], smart=True):
+                            st.success(_("Vehicle and references deleted!"))
+                            del st.session_state.confirm_delete_vehicle
+                            st.rerun()
+                            
+                    if c3.button(_("Cancel"), key=f"cancel_del_v_{vehicle['id']}"):
+                        del st.session_state.confirm_delete_vehicle
                         st.rerun()
 
     # Detailed View / Edit for Vehicle
@@ -109,7 +131,7 @@ def vehicle_tab():
                     status_change_time = sc_col2.time_input(_("Effective Time"), value=datetime.datetime.now().time(), key="v_sc_time")
                     status_note = st.text_area(_("Reason for change"), placeholder=_("Why is the status changing?"), key="v_sc_note")
                     
-                    if st.button("✅ " + _("Apply Status Change"), type="primary", use_container_width=True, key="apply_vehicle_status_change"):
+                    if st.button("✅ " + _("Apply Status Change"), type="primary", width="stretch", key="apply_vehicle_status_change"):
                         eff_datetime = datetime.datetime.combine(status_change_date, status_change_time)
                         
                         # Use manager to update status and history
@@ -176,7 +198,7 @@ def vehicle_tab():
                 v_mil = s_col1.number_input(_("Mileage (km)"), value=int(veh.get('mileage', 0)))
                 v_gen = s_col2.number_input(_("Generator Hours"), value=float(veh.get('generator_hours', 0.0)))
 
-                if st.form_submit_button(_("💾 Save Vehicle Details"), use_container_width=True):
+                if st.form_submit_button(_("💾 Save Vehicle Details"), width="stretch"):
                     # Update vehicle info (NOT status - that's handled separately)
                     vehicle_manager.update_vehicle(
                         veh_id, name=v_name, registration=v_reg,
@@ -498,7 +520,10 @@ def vehicle_tab():
 def driver_tab():
     st.subheader("👤 " + _("Drivers"))
     
-    drivers = driver_manager.get_all_drivers()
+    d_col1, d_col2 = st.columns([3, 1])
+    show_archived_d = d_col2.checkbox(_("Show Archived"), value=False, key="show_archived_d")
+    
+    drivers = driver_manager.get_all_drivers(include_archived=show_archived_d)
     
     # Add Driver Form (Expander)
     with st.expander("➕ " + _("Add New Driver")):
@@ -530,11 +555,27 @@ def driver_tab():
                     st.session_state.editing_driver = driver['id']
                 
                 if col5.button("🗑️", key=f"del_dr_{driver['id']}"):
-                    if driver_manager.delete_driver(driver['id']):
-                        st.toast(_("Driver") + f" {driver['name']} " + _("deleted!"))
+                    st.session_state.confirm_delete_driver = driver['id']
+                
+                # Confirmation UI
+                if st.session_state.get('confirm_delete_driver') == driver['id']:
+                    st.warning(f"⚠️ " + _("Confirm deletion for") + f" **{driver['name']}**")
+                    c1, c2, c3 = st.columns([1, 1, 1])
+                    if c1.button(_("Archive"), key=f"arch_d_btn_{driver['id']}"):
+                        if driver_manager.archive_driver(driver['id']):
+                            st.success(_("Driver archived!"))
+                            del st.session_state.confirm_delete_driver
+                            st.rerun()
+                    
+                    if c2.button(_("Smart Delete"), key=f"smart_del_d_btn_{driver['id']}", type="primary"):
+                        if driver_manager.delete_driver(driver['id'], smart=True):
+                            st.success(_("Driver and references deleted!"))
+                            del st.session_state.confirm_delete_driver
+                            st.rerun()
+                            
+                    if c3.button(_("Cancel"), key=f"cancel_del_d_{driver['id']}"):
+                        del st.session_state.confirm_delete_driver
                         st.rerun()
-                    else:
-                        st.error("Cannot delete assigned driver!")
 
     # Detailed View / Edit for Driver
     if st.session_state.get('editing_driver'):

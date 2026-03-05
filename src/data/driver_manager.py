@@ -31,7 +31,8 @@ class DriverManager:
         # Get assigned vehicle from relationship
         assigned_vehicle_id = None
         if driver.assigned_vehicle_rel:
-            assigned_vehicle_id = driver.assigned_vehicle_rel.id
+            # Handle case where multiple vehicles might be assigned to one driver
+            assigned_vehicle_id = driver.assigned_vehicle_rel[0].id
         
         # Get status history
         s_history = []
@@ -55,6 +56,7 @@ class DriverManager:
             'identity_card_expiry': driver.identity_card_expiry.isoformat() if driver.identity_card_expiry else None,
             'medical_exam_expiry': driver.medical_exam_expiry.isoformat() if driver.medical_exam_expiry else None,
             'psychological_exam_expiry': driver.psychological_exam_expiry.isoformat() if driver.psychological_exam_expiry else None,
+            'is_archived': driver.is_archived,
             
             'created': driver.created_at.isoformat() if driver.created_at else None,
             'last_modified': driver.last_modified.isoformat() if driver.last_modified else None
@@ -106,11 +108,14 @@ class DriverManager:
         finally:
             session.close()
     
-    def get_all_drivers(self) -> List[Dict[str, Any]]:
+    def get_all_drivers(self, include_archived: bool = False) -> List[Dict[str, Any]]:
         """Get all drivers"""
         session = SessionLocal()
         try:
-            drivers = session.query(Driver).all()
+            query = session.query(Driver)
+            if not include_archived:
+                query = query.filter(Driver.is_archived == False)
+            drivers = query.all()
             return [self._to_dict(d) for d in drivers]
         finally:
             session.close()
@@ -368,15 +373,57 @@ class DriverManager:
         finally:
             session.close()
     
-    def delete_driver(self, driver_id: str) -> bool:
-        """Delete a driver (only if not assigned to vehicle)"""
+    def archive_driver(self, driver_id: str) -> bool:
+        """Archive a driver (soft delete)"""
+        session = SessionLocal()
+        try:
+            driver = session.query(Driver).filter(Driver.id == driver_id).first()
+            if driver:
+                driver.is_archived = True
+                # Unassign from vehicle if currently assigned
+                if driver.assigned_vehicle_id:
+                    self.assign_to_vehicle(driver_id, None)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error archiving driver: {e}")
+            return False
+        finally:
+            session.close()
+
+    def delete_driver(self, driver_id: str, smart: bool = True) -> bool:
+        """Delete a driver with optional smart cleanup of references"""
         session = SessionLocal()
         try:
             driver = session.query(Driver).filter(Driver.id == driver_id).first()
             if not driver:
                 return False
             
-            if driver.assigned_vehicle_id:
+            if smart:
+                # 1. Unassign from ANY vehicle (sync both ways)
+                from src.data.models import Vehicle
+                vehicles = session.query(Vehicle).filter(Vehicle.driver_id == driver_id).all()
+                for v in vehicles:
+                    v.driver_id = None
+                    v.driver_name = None
+                
+                # 2. Cleanup Campaign references
+                from src.data.models import Campaign
+                campaigns = session.query(Campaign).filter(Campaign.driver_id == driver_id).all()
+                for c in campaigns:
+                    c.driver_id = None
+                
+                # 3. Cleanup Documents
+                from src.data.document_manager import DocumentManager
+                dm = DocumentManager()
+                dm.delete_all_entity_documents('driver', driver_id)
+                
+                # 4. Clear current assignment pointer
+                driver.assigned_vehicle_id = None
+            
+            elif driver.assigned_vehicle_id:
                 logger.error(f"Cannot delete driver: assigned to vehicle {driver.assigned_vehicle_id}")
                 return False
             

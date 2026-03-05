@@ -727,7 +727,7 @@
             "avg_commute_distance_km": 8,
             "description": "City with population 10,043",
             "source": "User Input",
-            "last_updated": "2025-12-05T08:21:07.697622",
+            "last_updated": "2026-01-12T13:02:43.394928",
             "update_preference": "manual"
         },
         "current": {
@@ -780,6 +780,52 @@
         },
         "current": {
             "ref": "2025-Q4"
+        }
+    },
+    "Curtea de Arges": {
+        "2026-Q1": {
+            "population": 10043,
+            "county": "Ilfov",
+            "active_population_pct": 62,
+            "daily_traffic_total": 5021,
+            "daily_pedestrian_total": 6025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 10,043",
+            "source": "User Input",
+            "last_updated": "2026-01-12T12:50:17.579336",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2026-Q1"
+        }
+    },
+    "Fetesti": {
+        "2026-Q1": {
+            "population": 10043,
+            "county": "Ilfov",
+            "active_population_pct": 62,
+            "daily_traffic_total": 5021,
+            "daily_pedestrian_total": 6025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 10,043",
+            "source": "User Input",
+            "last_updated": "2026-01-12T13:02:43.394928",
+            "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2026-Q1"
         }
     }
 }

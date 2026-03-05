@@ -212,3 +212,4 @@ def get_granular_intervals(start, end, hours_info=None, default_hours="09:00-17:
         curr += datetime.timedelta(days=1)
     
     return intervals_out
+

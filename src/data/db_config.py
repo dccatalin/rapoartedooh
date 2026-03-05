@@ -9,9 +9,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # This is
 DB_FOLDER = os.path.join(BASE_DIR, 'data')
 ORIGINAL_DB_PATH = os.path.join(DB_FOLDER, 'rapoartedooh.db')
 
-# Robust path detection for Streamlit Cloud
-# STREAMLIT_SHARING is a reliable indicator on Streamlit Cloud
-IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SHARING') == 'true' or os.environ.get('STREAMLIT_RUNTIME_ENV') is not None
+# Robust path detection for Streamlit Community Cloud
+# STREAMLIT_SHARING is 'true' on Streamlit's official hosting.
+IS_STREAMLIT_CLOUD = os.environ.get('STREAMLIT_SHARING') == 'true'
 
 if IS_STREAMLIT_CLOUD:
     # On Streamlit Cloud, the repo is read-only. 
@@ -19,12 +19,12 @@ if IS_STREAMLIT_CLOUD:
     # Using a unique name to avoid collisions if multiple apps on same machine (unlikely but safe)
     TEMP_DB_PATH = "/tmp/rapoartedooh_writable.db"
     
-    # Try to copy the original DB to /tmp
+    # Try to copy the original DB to /tmp if it doesn't exist
     if os.path.exists(ORIGINAL_DB_PATH):
         try:
-            # We copy it to ensure we have the latest data from GitHub on each reboot
-            # or if it doesn't exist yet in /tmp
-            if not os.path.exists(TEMP_DB_PATH) or os.path.getmtime(ORIGINAL_DB_PATH) > os.path.getmtime(TEMP_DB_PATH):
+            # We ONLY copy if the temp DB doesn't exist yet.
+            # We DON'T want to overwrite user data on every reboot if /tmp persists!
+            if not os.path.exists(TEMP_DB_PATH):
                 shutil.copy2(ORIGINAL_DB_PATH, TEMP_DB_PATH)
                 # Ensure permissions are writable
                 os.chmod(TEMP_DB_PATH, 0o666)
@@ -58,31 +58,16 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
-# Caching for Streamlit
+# Caching for Streamlit - REMOVED to prevent SQLAlchemy Mapper Conflicts
+# On every script rerun, Streamlit might try to re-regrister classes if Base is cached.
 try:
-    import streamlit as st
-    from streamlit.runtime import exists as streamlit_exists
-    
-    if streamlit_exists():
-        @st.cache_resource
-        def _get_engine_and_session():
-            _engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
-            event.listen(_engine, "connect", set_sqlite_pragma)
-            _SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=_engine))
-            return _engine, _SessionLocal
-
-        @st.cache_resource
-        def _get_declarative_base():
-            return declarative_base()
-
-        engine, SessionLocal = _get_engine_and_session()
-        Base = _get_declarative_base()
-    else:
-        engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
-        event.listen(engine, "connect", set_sqlite_pragma)
-        SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
-        Base = declarative_base()
-except (ImportError, Exception):
+    engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
+    event.listen(engine, "connect", set_sqlite_pragma)
+    SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+    Base = declarative_base()
+except Exception as e:
+    print(f"Database initialization error: {e}")
+    # Standard initialization as fallback
     engine = create_engine(DATABASE_URL, echo=False, **ENGINE_ARGS)
     event.listen(engine, "connect", set_sqlite_pragma)
     SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -108,7 +93,8 @@ def init_db():
             ("identity_card_expiry", "DATE"),
             ("medical_exam_expiry", "DATE"),
             ("psychological_exam_expiry", "DATE"),
-            ("email", "VARCHAR(100)")
+            ("email", "VARCHAR(100)"),
+            ("is_archived", "BOOLEAN DEFAULT 0")
         ]
         
         for col_name, col_type in new_cols:
@@ -118,6 +104,18 @@ def init_db():
                     cursor.execute(f"ALTER TABLE drivers ADD COLUMN {col_name} {col_type}")
                 except Exception as e:
                     print(f"Error adding column {col_name}: {e}")
+        
+        # Check vehicles table
+        cursor.execute("PRAGMA table_info(vehicles)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "is_archived" not in columns:
+            cursor.execute("ALTER TABLE vehicles ADD COLUMN is_archived BOOLEAN DEFAULT 0")
+
+        # Check campaigns table
+        cursor.execute("PRAGMA table_info(campaigns)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "is_archived" not in columns:
+            cursor.execute("ALTER TABLE campaigns ADD COLUMN is_archived BOOLEAN DEFAULT 0")
         
         conn.commit()
         conn.close()

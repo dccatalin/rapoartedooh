@@ -81,7 +81,7 @@ def main():
         current_theme = settings.get('theme', 'Light')
         selected_theme = st.selectbox(_("Select Theme"), options=theme_options, index=theme_options.index(current_theme) if current_theme in theme_options else 0)
         
-        if st.button(_("Save Profile"), use_container_width=True):
+        if st.button(_("Save Profile"), width="stretch"):
             save_data = {
                 'name': comp_name, 
                 'address': comp_addr, 
@@ -157,7 +157,7 @@ def main():
             col = [v1, v2, v3][i % 3]
             new_colors[status] = col.color_picker(_(status), value=saved_colors.get(status, default_colors.get(status, "#cccccc")))
             
-        if st.button(_("Save Colors"), use_container_width=True):
+        if st.button(_("Save Colors"), width="stretch"):
             if cs.save_settings(timeline_colors=new_colors):
                 st.success(_("Colors saved!"))
                 st.rerun()
@@ -179,7 +179,7 @@ def main():
         show_app = st.checkbox(_("Show Notifications in App"), value=settings.get('show_notifs_app', True))
         send_email = st.checkbox(_("Send Email Notifications"), value=settings.get('send_notifs_email', False))
         
-        if st.button(_("Save Notification Settings"), use_container_width=True):
+        if st.button(_("Save Notification Settings"), width="stretch"):
             notif_data = {
                 'smtp_host': smtp_host,
                 'smtp_port': smtp_port,

@@ -390,7 +390,7 @@ def main():
             # FORCE X-AXIS RANGE
             fig.update_xaxes(range=[start_date, end_date])
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info(_("No timeline data found for the selected filters."))
 
@@ -414,7 +414,7 @@ def main():
         
         t_start = (t_page - 1) * t_page_size
         t_end = min(t_start + t_page_size, t_items)
-        st.dataframe(df_sorted.iloc[t_start:t_end], use_container_width=True)
+        st.dataframe(df_sorted.iloc[t_start:t_end], width="stretch")
 
         # --- Daily Breakdown ---
         st.divider()
@@ -520,7 +520,7 @@ def main():
             
             d_start = (d_page - 1) * d_page_size
             d_end = min(d_start + d_page_size, d_items)
-            st.dataframe(df_daily_sorted.iloc[d_start:d_end], use_container_width=True)
+            st.dataframe(df_daily_sorted.iloc[d_start:d_end], width="stretch")
             
             # Export Daily
             csv_d = df_daily.to_csv(index=False).encode('utf-8')

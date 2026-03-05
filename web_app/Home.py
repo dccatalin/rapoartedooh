@@ -8,11 +8,11 @@ from src.utils.i18n import _
 utils.set_page_config("Dashboard", "📊")
 utils.inject_custom_css()
 
-# Import Managers (NOW that path is initialized)
+
+from src.data.db_config import init_db
 from src.data.campaign_storage import CampaignStorage
 from src.data.vehicle_manager import VehicleManager
 from src.data.driver_manager import DriverManager
-from src.data.db_config import init_db
 
 # Ensure DB is initialized
 try:
@@ -104,19 +104,19 @@ def main():
     with c1:
         st.info("#### 📁 " + _("Campaigns"))
         st.write(_("Manage client campaigns and generate PDF reports."))
-        if st.button(_("Manage Campaigns"), use_container_width=True):
+        if st.button(_("Manage Campaigns"), width="stretch"):
             st.switch_page("pages/1_Campaigns.py")
-        if st.button(_("Condică (Timesheet)"), use_container_width=True):
+        if st.button(_("Condică (Timesheet)"), width="stretch"):
             st.switch_page("pages/1_Timesheet.py")
     with c2:
         st.success("#### 🚛 " + _("Fleet Management"))
         st.write(_("Track vehicles, drivers, and document expiry dates."))
-        if st.button(_("Fleet Management"), use_container_width=True):
+        if st.button(_("Fleet Management"), width="stretch"):
             st.switch_page("pages/2_Fleet.py")
     with c3:
         st.warning("#### 🏙️ " + _("Cities & Events"))
         st.write(_("Update population data and event multipliers."))
-        if st.button(_("Manage Cities"), use_container_width=True):
+        if st.button(_("Manage Cities"), width="stretch"):
             st.switch_page("pages/3_Cities.py")
 
     st.divider()
@@ -486,7 +486,7 @@ def main():
         if start_filter and end_filter:
             fig.update_xaxes(range=[start_filter, end_filter])
             
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info(_("No active schedules found for the selected filters."))
 

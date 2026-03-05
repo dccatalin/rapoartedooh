@@ -64,11 +64,13 @@ class Driver(Base):
     medical_exam_expiry = Column(Date, nullable=True)
     psychological_exam_expiry = Column(Date, nullable=True)
     
+    is_archived = Column(Boolean, default=False)
+    
     created_at = Column(DateTime, default=datetime.now)
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     # Relationships
-    assigned_vehicle_rel = relationship("Vehicle", back_populates="driver", foreign_keys="Vehicle.driver_id", uselist=False)
+    assigned_vehicle_rel = relationship("Vehicle", back_populates="driver", foreign_keys="Vehicle.driver_id", uselist=True)
     assignment_history = relationship(DriverAssignmentHistory, back_populates="driver", cascade="all, delete-orphan")
     status_history = relationship(DriverStatusHistory, back_populates="driver", cascade="all, delete-orphan")
     schedules = relationship("DriverSchedule", back_populates="driver", cascade="all, delete-orphan")
@@ -91,6 +93,7 @@ class Vehicle(Base):
     
     mileage = Column(Integer, default=0)
     generator_hours = Column(Float, default=0.0)
+    is_archived = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=datetime.now)
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -148,6 +151,8 @@ class Campaign(Base):
     # Resource timeline tracking
     vehicle_timeline = Column(JSON, default=[])  # [{"vehicle_id": "...", "start_date": "...", "end_date": "..."}]
     driver_timeline = Column(JSON, default=[])   # [{"driver_id": "...", "start_date": "...", "end_date": "..."}]
+    
+    is_archived = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=datetime.now)
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)

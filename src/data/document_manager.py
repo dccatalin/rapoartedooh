@@ -388,3 +388,40 @@ class DocumentManager:
                     print(f"Synced {doc_type} expiry ({expiry_date}) to driver {driver.name}")
         except Exception as e:
             print(f"Error syncing driver expiry: {e}")
+    def delete_all_entity_documents(self, entity_type: str, entity_id: str) -> bool:
+        """Delete all documents and their files for a specific entity"""
+        session = SessionLocal()
+        try:
+            documents = session.query(Document).filter(
+                Document.entity_type == entity_type,
+                Document.entity_id == entity_id
+            ).all()
+            
+            for doc in documents:
+                # Delete file if exists
+                if doc.file_path:
+                    abs_path = os.path.abspath(doc.file_path)
+                    if os.path.exists(abs_path):
+                        try:
+                            os.remove(abs_path)
+                        except Exception as e:
+                            print(f"Error removing file {abs_path}: {e}")
+                
+                session.delete(doc)
+            
+            # Also try to remove the entity directory if empty
+            entity_dir = os.path.join(self.DOCUMENTS_DIR, f"{entity_type}s", entity_id)
+            if os.path.exists(entity_dir):
+                try:
+                    shutil.rmtree(entity_dir)
+                except Exception as e:
+                    print(f"Error removing directory {entity_dir}: {e}")
+                    
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            print(f"Error deleting entity documents: {e}")
+            return False
+        finally:
+            session.close()

@@ -13,9 +13,9 @@ utils.inject_custom_css()
 # Imports
 from src.utils.i18n import _
 
+
 from src.data.campaign_storage import CampaignStorage
 from src.data.models import CampaignSpot
-
 from src.data.vehicle_manager import VehicleManager
 from src.data.distance_service import DistanceService
 from src.services.resource_service import ResourceService
@@ -199,7 +199,7 @@ def render_campaign_timeline():
     if start_filter and end_filter:
         fig.update_xaxes(range=[start_filter, end_filter])
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 def list_campaigns():
     st.header(_("Campaign Management"))
@@ -207,11 +207,16 @@ def list_campaigns():
     tab_list, tab_timeline = st.tabs([_("📋 List View"), _("📊 Resource Timeline")])
     
     with tab_list:
-        if st.button(_("➕ Create New Campaign")):
+        c_col1, c_col2 = st.columns([3, 1])
+        if c_col1.button(_("➕ Create New Campaign")):
             st.session_state.mode = "create"
             st.rerun()
+        
+        show_archived_c = c_col2.checkbox(_("Show Archived"), value=False, key="show_archived_c")
 
-        campaigns = storage.get_all_campaigns()
+
+
+        campaigns = storage.get_all_campaigns(include_archived=show_archived_c)
         if not campaigns:
             st.info(_("No campaigns found."))
         else:
@@ -302,15 +307,29 @@ def list_campaigns():
                         st.error(f"❌ Error duplicating campaign '{c['campaign_name']}': {str(e)}")
                     
                 if cols[8].button("🗑️", key=f"delete_{c['id']}"):
-                    try:
-                        result = storage.delete_campaign(c['id'])
-                        if result:
-                            st.toast(f"✅ " + _("Campaign") + f" '{c['campaign_name']}' " + _("deleted successfully!"))
+                    st.session_state.confirm_delete_campaign = c['id']
+                
+                # Confirmation UI
+                if st.session_state.get('confirm_delete_campaign') == c['id']:
+                    st.divider()
+                    st.warning(f"⚠️ " + _("Confirm deletion for") + f" **{c['campaign_name']}**")
+                    ca1, ca2, ca3 = st.columns([1, 1, 1])
+                    if ca1.button(_("Archive"), key=f"arch_c_btn_{c['id']}"):
+                        if storage.archive_campaign(c['id']):
+                            st.success(_("Campaign archived!"))
+                            del st.session_state.confirm_delete_campaign
                             st.rerun()
-                        else:
-                            st.error(f"❌ Failed to delete campaign '{c['campaign_name']}'. The campaign may not exist or there was a database error. Check logs for details.")
-                    except Exception as e:
-                        st.error(f"❌ Error deleting campaign '{c['campaign_name']}': {str(e)}")
+                    
+                    if ca2.button(_("Permanent Delete"), key=f"perm_del_c_btn_{c['id']}", type="primary"):
+                        if storage.delete_campaign(c['id']):
+                            st.success(_("Campaign deleted!"))
+                            del st.session_state.confirm_delete_campaign
+                            st.rerun()
+                            
+                    if ca3.button(_("Cancel"), key=f"cancel_del_c_{c['id']}"):
+                        del st.session_state.confirm_delete_campaign
+                        st.rerun()
+                    st.divider()
 
     with tab_timeline:
         render_campaign_timeline()
@@ -691,7 +710,7 @@ def campaign_form(edit_id=None):
 
         if shared_mode:
             st.divider()
-            all_cities = sorted(city_manager.get_all_cities())
+            all_cities = sorted(city_manager.get_all_cities(include_archived=False))
             
             selected_cities = st.multiselect(
                 _("Cities (Shared Configuration)"), 
@@ -745,7 +764,7 @@ def campaign_form(edit_id=None):
             for v_id in selected_vehicle_ids:
                 v_name = vehicle_options.get(v_id, v_id)
                 with st.expander("🚛 " + _("Schedule for") + f" {v_name}", expanded=True):
-                    all_cities = sorted(city_manager.get_all_cities())
+                    all_cities = sorted(city_manager.get_all_cities(include_archived=False))
                     v_data_periods = existing_data.get('city_periods', {}).get(v_id, {})
                     v_selected_cities = list(v_data_periods.keys()) if isinstance(v_data_periods, dict) else []
                     v_cities = st.multiselect(_("Cities for") + f" {v_name}", options=all_cities, default=v_selected_cities, key=f"v_cities_{v_id}")
@@ -990,7 +1009,7 @@ def campaign_form(edit_id=None):
             t_end = t_col2.date_input(_("Transit End"), value=default_t_end, key="t_end")
             
             # City Selection
-            city_list = sorted(city_manager.get_all_cities())
+            city_list = sorted(city_manager.get_all_cities(include_archived=False))
             t_col_orig, t_col_dest = st.columns(2)
             t_origin = t_col_orig.selectbox(_("Origin City"), options=city_list, index=find_idx(edit_data.get('origin'), city_list), key="t_orig")
             t_dest = t_col_dest.selectbox(_("Destination City"), options=city_list, index=find_idx(edit_data.get('destination'), city_list), key="t_dest")
@@ -1848,8 +1867,8 @@ def campaign_form(edit_id=None):
 
         # Buttons (Outside a form they are regular buttons)
         col_btn1, col_btn2, empty_col = st.columns([1, 1, 2])
-        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", use_container_width=True)
-        generate = col_btn2.button("🚀 " + _("Save & Generate PDF"), use_container_width=True)
+        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", width="stretch")
+        generate = col_btn2.button("🚀 " + _("Save & Generate PDF"), width="stretch")
 
         if submitted or generate:
             if not client_name or not campaign_name:
