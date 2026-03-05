@@ -38,7 +38,7 @@ class TestCampaignValidator:
         assert not self.validator.validate_hours("25:00-26:00").is_valid  # Invalid time
 
     def test_validate_costs(self):
-        # Valid financials
+        # Valid DOOH data
         assert self.validator.validate_costs(1.5, 100, 1000).is_valid
         
         # Invalid negatives

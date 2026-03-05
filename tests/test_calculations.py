@@ -1,5 +1,5 @@
 import pytest
-from src.reporting.financial_report_generator import FinancialReportGenerator
+from src.reporting.dooh_report_generator import DoohReportGenerator
 
 class TestCalculations:
     def test_roi_calculation(self):

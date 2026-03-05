@@ -727,7 +727,7 @@
             "avg_commute_distance_km": 8,
             "description": "City with population 10,043",
             "source": "User Input",
-            "last_updated": "2026-01-12T13:02:43.394928",
+            "last_updated": "2026-03-03T11:58:43.345876",
             "update_preference": "manual"
         },
         "current": {
@@ -823,6 +823,31 @@
             "source": "User Input",
             "last_updated": "2026-01-12T13:02:43.394928",
             "update_preference": "manual"
+        },
+        "current": {
+            "ref": "2026-Q1"
+        }
+    },
+    "Braila": {
+        "2026-Q1": {
+            "population": 321481,
+            "county": "Braila",
+            "active_population_pct": 62,
+            "daily_traffic_total": 15921,
+            "daily_pedestrian_total": 6025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "public_transport": 34,
+                "cycling": 4
+            },
+            "avg_commute_distance_km": 8.0,
+            "description": "City with population 10,043",
+            "source": "Manual Update",
+            "last_updated": "2026-03-03T12:22:38.574181",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
         },
         "current": {
             "ref": "2026-Q1"

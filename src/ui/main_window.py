@@ -189,7 +189,7 @@ class MainWindow(QMainWindow):
             "About Raportare DOOH",
             "Raportare DOOH v9.0\n\n"
             "Advanced Campaign Management & Analytics\n"
-            "Features: ROI, Route Optimization, Financial Reports"
+            "Features: ROI, Route Optimization, DOOH Reports"
         )
     
     def create_menu_bar(self):

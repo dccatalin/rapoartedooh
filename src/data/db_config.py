@@ -116,6 +116,10 @@ def init_db():
         columns = [row[1] for row in cursor.fetchall()]
         if "is_archived" not in columns:
             cursor.execute("ALTER TABLE campaigns ADD COLUMN is_archived BOOLEAN DEFAULT 0")
+        if "budget_eur" not in columns:
+            cursor.execute("ALTER TABLE campaigns ADD COLUMN budget_eur FLOAT DEFAULT 0.0")
+        if "audited_data" not in columns:
+            cursor.execute("ALTER TABLE campaigns ADD COLUMN audited_data JSON DEFAULT '{}'")
         
         conn.commit()
         conn.close()

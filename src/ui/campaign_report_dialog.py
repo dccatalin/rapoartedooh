@@ -308,7 +308,7 @@ class CampaignReportDialog(QDialog):
         
         self.toolbox.addItem(page4, "4. Spot Settings")
         
-        # --- Section 5: Financial Details ---
+        # --- Section 5: DOOH Details ---
         page5 = QWidget()
         layout5 = QFormLayout(page5)
         
@@ -346,7 +346,7 @@ class CampaignReportDialog(QDialog):
         self.fixed_costs.valueChanged.connect(self.update_roi_display)
         self.expected_revenue.valueChanged.connect(self.update_roi_display)
         
-        self.toolbox.addItem(page5, "5. Financial Details")
+        self.toolbox.addItem(page5, "5. DOOH Details")
         
         main_layout.addWidget(self.toolbox)
         
@@ -1128,12 +1128,12 @@ class CampaignReportDialog(QDialog):
             campaign = self.storage.get_campaign(cloned_id)
             if campaign:
                 self.load_campaign(campaign)
-                QMessageBox.information(self, "Success", f"Campaign cloned successfully\\n\\nNew name: {campaign.get('campaign_name', '')}")
+                QMessageBox.information(self, "Success", f"Campaign cloned successfully\n\nNew name: {campaign.get('campaign_name', '')}")
         else:
             QMessageBox.critical(self, "Error", "Failed to clone campaign")
     
     def update_roi_display(self):
-        """Update ROI display based on current financial inputs"""
+        """Update ROI display based on current DOOH inputs"""
         # Calculate distance: manual first, then calculated
         distance = 0
         if self.use_known_distance.isChecked() and self.distance_total.value() > 0:
@@ -1258,8 +1258,8 @@ class CampaignReportDialog(QDialog):
         dialog = CampaignCalendarView(self)
         dialog.exec()
         
-    def generate_financial_report(self):
-        """Generate dedicated financial PDF report"""
+    def generate_dooh_report(self):
+        """Generate dedicated DOOH PDF report"""
         if not self.current_campaign_id:
             QMessageBox.warning(self, "No Campaign", "Please save the campaign first")
             return
@@ -1270,12 +1270,12 @@ class CampaignReportDialog(QDialog):
             QMessageBox.critical(self, "Error", "Campaign data not found")
             return
         
-        # Check if financial data exists
-        if campaign_data.get('cost_per_km', 0) == 0 and campaign_data.get('fixed_costs', 0) == 0:
+        # Check if DOOH data exists
+        if not (campaign_data.get('cost_per_km') or campaign_data.get('fixed_costs') or campaign_data.get('expected_revenue')):
             reply = QMessageBox.question(
                 self,
-                "No Financial Data",
-                "No financial data entered. Generate report anyway?",
+                "No DOOH Data",
+                "No DOOH data entered. Generate report anyway?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.No:
@@ -1323,15 +1323,15 @@ class CampaignReportDialog(QDialog):
         reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'reports')
         os.makedirs(reports_dir, exist_ok=True)
         
-        filename = f"financial_{client_name}_{campaign_name}_{timestamp}.pdf"
+        filename = f"dooh_{client_name}_{campaign_name}_{timestamp}.pdf"
         file_path = os.path.join(reports_dir, filename)
         
         # Generate report
         try:
-            from src.reporting.financial_report_generator import FinancialReportGenerator
+            from src.reporting.dooh_report_generator import DoohReportGenerator
             
-            generator = FinancialReportGenerator()
-            success = generator.generate_financial_report(campaign_data_with_distance, file_path)
+            generator = DoohReportGenerator(self.storage)
+            success = generator.generate_dooh_report(campaign_data_with_distance, file_path)
             
             if success:
                 # Open PDF automatically
@@ -1348,13 +1348,13 @@ class CampaignReportDialog(QDialog):
                 QMessageBox.information(
                     self,
                     "Success",
-                    f"Financial report generated and opened!\n\n{file_path}"
+                    f"DOOH report generated and opened!\n\n{file_path}"
                 )
             else:
-                QMessageBox.critical(self, "Error", "Failed to generate financial report")
+                QMessageBox.critical(self, "Error", "Failed to generate DOOH report")
                 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to generate financial report:\n\n{str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to generate DOOH report:\n\n{str(e)}")
 
     
     def optimize_route(self):

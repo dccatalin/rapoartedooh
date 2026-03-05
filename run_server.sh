@@ -11,5 +11,5 @@ fi
 
 # 3. Pornire Streamlit
 # --server.port 8501: Portul standard Streamlit
-# --server.address localhost: Pentru securitate (doar Apache să îl poată accesa)
-streamlit run web_app/Home.py --server.port 8501 --server.address localhost
+# --server.address 0.0.0.0: Permite accesul din rețea
+streamlit run web_app/Home.py --server.port 8501 --server.address 0.0.0.0

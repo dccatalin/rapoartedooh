@@ -140,10 +140,12 @@ class Campaign(Base):
     vehicle_speed_kmh = Column(Integer, default=25)
     stationing_min_per_hour = Column(Integer, default=15)
     
-    cost_per_km = Column(Integer, default=0)
-    fixed_costs = Column(Integer, default=0)
-    expected_revenue = Column(Integer, default=0)
+    cost_per_km = Column(Float, default=0.0)
+    fixed_costs = Column(Float, default=0.0)
+    expected_revenue = Column(Float, default=0.0)
     loop_duration = Column(Integer, default=60)
+    budget_eur = Column(Float, default=0.0)
+    audited_data = Column(JSON, default={})
     
     has_spots = Column(Boolean, default=False)
     spot_count = Column(Integer, default=0)
@@ -159,6 +161,26 @@ class Campaign(Base):
     
     # Relationships
     spots = relationship("CampaignSpot", back_populates="campaign", cascade="all, delete-orphan")
+    generated_reports = relationship("GeneratedReport", back_populates="campaign", cascade="all, delete-orphan")
+
+class GeneratedReport(Base):
+    __tablename__ = 'generated_reports'
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    campaign_id = Column(String(36), ForeignKey('campaigns.id', ondelete='CASCADE'), nullable=False)
+    report_type = Column(String(50), nullable=False)  # 'standard', 'dooh'
+    file_path = Column(String(500))
+    file_name = Column(String(255))
+    
+    # Store the exact metrics used at the time of generation
+    # e.g., impressions, reach, hours, distance, ecpm
+    frozen_data = Column(JSON, default={})
+    
+    created_at = Column(DateTime, default=datetime.now)
+    
+    # Relationships
+    campaign = relationship("Campaign", back_populates="generated_reports")
 
 class CampaignSpot(Base):
     __tablename__ = 'campaign_spots'

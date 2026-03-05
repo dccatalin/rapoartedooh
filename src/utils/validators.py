@@ -149,12 +149,12 @@ class CampaignValidator:
     
     @staticmethod
     def validate_costs(cost_per_km: float, fixed_costs: float, revenue: float) -> ValidationResult:
-        """Validate financial inputs"""
+        """Validate DOOH inputs"""
         if cost_per_km < 0 or fixed_costs < 0 or revenue < 0:
             return ValidationResult(False, "Costs and revenue cannot be negative", "error")
         
         if cost_per_km == 0 and fixed_costs == 0 and revenue == 0:
-            return ValidationResult(True, "No financial data entered", "info")
+            return ValidationResult(True, "No DOOH data entered", "info")
         
         if revenue > 0 and (cost_per_km + fixed_costs) == 0:
             return ValidationResult(True, "Revenue entered but no costs specified", "warning")
@@ -162,4 +162,4 @@ class CampaignValidator:
         if (cost_per_km + fixed_costs) > 0 and revenue == 0:
             return ValidationResult(True, "Costs entered but no revenue specified", "warning")
         
-        return ValidationResult(True, "Financial data looks valid", "info")
+        return ValidationResult(True, "DOOH data looks valid", "info")

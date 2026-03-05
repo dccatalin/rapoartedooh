@@ -132,6 +132,11 @@ class CampaignStorage:
             'hourly_data': campaign.hourly_data or {},
             'demographics': campaign.demographics or {},
             'locations': campaign.locations or {},
+            'cost_per_km': campaign.cost_per_km,
+            'fixed_costs': campaign.fixed_costs,
+            'expected_revenue': campaign.expected_revenue,
+            'budget_eur': campaign.budget_eur,
+            'audited_data': campaign.audited_data or {},
             'is_archived': campaign.is_archived,
             'created_at': campaign.created_at.isoformat() if campaign.created_at else None,
             'last_modified': campaign.last_modified.isoformat() if campaign.last_modified else None
@@ -199,13 +204,18 @@ class CampaignStorage:
             campaign.transit_periods = campaign_data.get('transit_periods', [])
             campaign.additional_vehicles = campaign_data.get('additional_vehicles', [])
             
-            # Vehicle Performance
+            # Performance & Spots
             campaign.vehicle_speed_kmh = campaign_data.get('vehicle_speed_kmh', 25)
             campaign.stationing_min_per_hour = campaign_data.get('stationing_min_per_hour', 15)
-            
-            # Spot Management
             campaign.has_spots = campaign_data.get('has_spots', False)
             campaign.spot_count = campaign_data.get('spot_count', 0)
+
+            # DOOH Details
+            campaign.cost_per_km = float(campaign_data.get('cost_per_km', 0.0))
+            campaign.fixed_costs = float(campaign_data.get('fixed_costs', 0.0))
+            campaign.expected_revenue = float(campaign_data.get('expected_revenue', 0.0))
+            campaign.budget_eur = float(campaign_data.get('budget_eur', 0.0))
+            campaign.audited_data = campaign_data.get('audited_data', {})
             
             # JSON fields
             campaign.hourly_data = campaign_data.get('hourly_data', {})

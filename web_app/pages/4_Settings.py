@@ -196,28 +196,111 @@ def main():
                 st.rerun()
 
     with tab_help:
-        st.subheader("📖 " + _("User Guide"))
-        st.markdown(_("Public: Automatic from web sources. INS: Statistics Institute. BRAT: Audited data. Manual: No automatic updates."))
+        st.subheader("📖 " + _("Ghid de Utilizare & Documentație"))
         
-        st.markdown(f"""
-        ### {_('Documentation')}
+        help_dashboard, help_fleet, help_campaigns, help_cities = st.tabs([
+            "📊 Dashboard", "🚛 Flotă & Documente", "📋 Campanii & Rapoarte", "🏙️ Orașe & Audiență"
+        ])
         
-        #### {_('Steps to generate a report')}:
-        1. **{_('Configurați Flota')}**: {_("Add new vehicles and drivers in 'Fleet'")}
-        2. **{_('Verificați Orașele')}**: {_("Ensure demographic data is updated in 'Cities'")}
-        3. **{_('Creați Campania')}**: {_("Enter client details, period, and assigned vehicles.")}
-        4. **{_('Descărcați PDF')}**: {_("Generate report and download it locally.")}
-        """)
-        
+        with help_dashboard:
+            st.markdown(f"""
+            ### 📊 Dashboard & Overview
+            În secțiunea principală a aplicației puteți vizualiza statusul general al flotei și programările campaniilor curente.
+            
+            **Indicatori de Bază**:
+            *   **Total Vehicule**: Numărul total de mașini din sistem (inclusiv cele inactive).
+            *   **Active Fleet**: Mașinile disponibile care nu sunt în mentenanță sau defecte.
+            *   **Defective**: Numărul mașinilor raportate cu probleme (cu status Defect sau Mentenanță). Acestea vor fi marcate distinct în campaniile alocate.
+            
+            **Gantt Chart (Timeline-ul Flotei)**:
+            Afișează vizual ocuparea mașinilor. Puteți filtra vizualizarea folosind:
+            *   **Orizontul de timp**: Selectați perioada vizată (Luna Curentă, Următoarele 3 Luni etc.)
+            *   **Status Campanii/Mașini**: Alegeți detaliile relevante pentru a planifica resursele liber disponibile.
+            *   **Mod de partajare**: Se afișează fiecare perioadă per oraș. Tipurile principale sunt 'Campanie' și perioadele de 'Tranzit' între orașe.
+            """)
+            
+        with help_fleet:
+            st.markdown(f"""
+            ### 🚛 Gestiunea Flotei și Resurselor Umane
+            Secțiunea "Fleet" este responsabilă pentru managementul mașinilor, șoferilor și a documentelor aferente.
+            
+            #### 1. Vehicule & Mentenanță
+            *   **Adăugare Vehicule**: Fiecare vehicul nou introdus necesită date tehnice și de registru (ex: Număr Înmatriculare).
+            *   **Istoric Status**: Statusul unui vehicul (ex: Defect, Activ) are un istoric detaliat, marcând modificările din timp. Când un vehicul intră în mentenanță, sistemul **alertează și blochează** alocarea sa pe campaniile existente ce se suprapun.
+            *   **Mentenanță & Revizii**: Generații intrări în jurnal pentru schimburile de ulei, service frâne etc., setând alertele pe bază de km sau dată (ex: *Expiră la 150000 km*).
+            
+            #### 2. Șoferi
+            *   **Asignare**: Șoferii pot fi asignați unui singur vehicul în mod activ, istoricul asignărilor păstrându-se automat.
+            *   **Documente Medicale/Psihologice**: Monitorizați alertele expirării pentru controlul medical prin sistemul de date al șoferului.
+            
+            #### 3. Managerul de Documente & Alerte
+            *   Sistemul permite încărcarea și organizarea polițelor (RCA, CASCO, ITP, Rovinietă) cu generarea codurilor de stare (Expirat/Valid/Expiră în Curând) vizibile sumarizate în notificările globale de sistem de pe Dashboard.
+            """)
+            
+        with help_campaigns:
+            st.markdown(f"""
+            ### 📋 Campanii, Condică & Generare Rapoarte
+            Această secțiune este piesa centrală a aplicației, corelând audiența, mașinile și performanța generând raportările clientului.
+            
+            #### Moduri de Configurare
+            *   **Shared Schedule**: Setările (orelor/orașelor) se aplică concomitent tuturor mașinilor alocate. Se folosește când o întreagă flotilă rulează aceeași campanie în aceleași orașe.
+            *   **Individual Schedule**: Oferă posibilitatea setărilor distincte. Vehiculul X pleacă spre Bacău, Vehiculul Y activează doar în București, chiar dacă țin de aceeași campanie.
+            
+            #### Adăugarea Perioadelor de Tranzit (Condică)
+            *   Pe parcursul unei campanii, perioadele în care mașina doar "tranzitează", fără expunere la public, trebuie introduse prin funcția *Tranzit*. Aceste ore **sunt excluse din calculele finale OTS**.
+            
+            3.  **Corectare prin Evenimente**: Multiplicatorii setați prin "Special Events" din zona orașului (ex. Zile Festivale=1.5x) măresc sau scad automat valorile pe zilele respective.
+            
+            #### 📈 Raport DOOH (Financiar & Auditat)
+            Acest raport special (butonul **📈** din listă) oferă metrici avansate de ROI și performanță auditată:
+            - **Sincronizare Impresii**: Valorile de bază sunt acum sincronizate automat cu "Raportul de Campanie" standard pentru o consistență totală.
+            - **Ajustare pe Baza Datelor Auditate**: Dacă sunt prezente date de teren (ore confirmate VnNox), sistemul scalează automat impresiile estimate pentru a reflecta performanța reală verificată.
+            - **eCPM (Effective Cost Per Mille)**: Calculează costul real la 1000 de impresii folosind **Bugetul Campaniei** introdus în detalii.
+            - **Indicatori Financiari**: Include acum monitorizarea pentru **Cost pe KM**, **Costuri Fixe** și **Venit Estimat**, oferind o imagine completă a eficienței economice.
+            - **Valoare Media**: Compară performanța campaniei cu benchmark-urile din piață (Media Value).
+            
+            #### 🔍 Gestiune Date Auditate & Financiare
+            Tab-ul dedicat permite importul datelor de teren și configurarea costurilor pentru o precizie maximă:
+            - **Detalii Financiare**: Salvarea persistentă a bugetului, costurilor per km și a veniturilor estimate.
+            - **Import GPS**: Încarcă fișiere CSV cu distanțele parcurse pentru a valida acoperirea geografică.
+            - **Import VnNox / PoP**: Validare Proof of Play pentru confirmarea difuzării spoturilor și ajustarea automată a impactului raportat.
+            - **Impact Meteo**: Corecție manuală (%) pentru a reflecta condițiile atmosferice reale (ex: -10% pentru ploaie).
+            """)
+            
+        with help_cities:
+            st.markdown(f"""
+            ### 🏙️ Orașe, Audiență & Actualizări Demografice
+            Metodologia rapoartelor DOOH se bazează esențial pe informațiile stocate în această secțiune. Pentru precizie OTS (Opportunity to See), asigurați corectitudinea datelor!
+            
+            #### Parametri Esențiali
+            *   **Modal Split (%)**: Procentajele aferente transportului (Auto / Walking / Public / Cycling). Impactul vizual se adresează grupurilor expuse direct publicității mobile.
+            *   **Trafic Zilnic și Pietonal**: Se completează automat (dacă modul e Public/INS) sau Manual. Calculează audiența per locație.
+            
+            #### Metode de Actualizare Date
+            Selectați metoda prin care platforma trage datele orașului respectiv:
+            *   **Public (Surse Publice API)**: Interogări deschise (OpenStreetMap/Nominatim) pentru populație și coordonate.
+            *   **INS (Statistici Naționale)**: Date oficiale de la Institutul Național de Statistică pentru precizie demografică.
+            *   **BRAT (Audit Media)**: Valorile auditate oficial în România; metoda recomandată pentru rapoartele comerciale finale către agenții.
+            *   **Manual**: Permite introducerea manuală a fluxului auto/pietonal (util pentru zone noi sau evenimente atipice).
+            
+            #### 📍 Import Date GPS & VnNox
+            Sistemul permite validarea *PoP (Proof of Play)* prin import de fișiere:
+            1.  **Date GPS (CSV)**: Se încarcă log-urile mașinilor. Sistemul calculează automat distanța reală (km) și validează prezența în orașele targetate.
+            2.  **Date VnNox (Logs)**: Se confirmă rularea spoturilor pe ecrane. Se calculează orele de difuzare efective, eliminând timpii morți sau defecțiunile tehnice.
+            
+            #### Evenimente Speciale (Special Events)
+            Dacă la o dată precisă există un Târg, Festival (UNTOLD de ex.) etc., creați un *Eveniment*, alocându-i multiplicatori (M > 1 crește impactul OTS recunoscut). 
+            """)
+
         st.divider()
-        st.subheader("ℹ️ " + _("System Information"))
+        st.subheader("ℹ️ System Information")
         st.markdown(f"""
         **{_('Version')}:** 3.5 (i18n Stabilized)  
         **Maintainer:** Cătălin Dragomirescu  
         **Contact:** 0744929578 | catalin.dragomirescu@gmail.com
         """)
         
-        st.info("Design and built for Fairway")
+        st.info("Design and built for Fairway", icon="💼")
 
 if __name__ == "__main__":
     main()

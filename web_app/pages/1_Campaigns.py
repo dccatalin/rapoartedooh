@@ -23,6 +23,11 @@ from src.data.driver_manager import DriverManager
 from src.data.city_data_manager import CityDataManager
 from src.data.company_settings import CompanySettings
 from src.reporting.campaign_report_generator import CampaignReportGenerator
+from src.reporting.dooh_report_generator import DoohReportGenerator
+from src.reporting.fleet_utilization_report import FleetUtilizationReportGenerator
+from src.data.report_storage import ReportStorage
+
+rep_storage = ReportStorage()
 
 CAMPAIGN_MODES = {
     'NEARBY_TOUR': {
@@ -204,7 +209,7 @@ def render_campaign_timeline():
 def list_campaigns():
     st.header(_("Campaign Management"))
     
-    tab_list, tab_timeline = st.tabs([_("📋 List View"), _("📊 Resource Timeline")])
+    tab_list, tab_timeline, tab_audit = st.tabs([_("📋 List View"), _("📊 Resource Timeline"), _("🔍 Date Auditate (GPS & PoP)")])
     
     with tab_list:
         c_col1, c_col2 = st.columns([3, 1])
@@ -243,7 +248,7 @@ def list_campaigns():
             
             # Header Row
             st.divider()
-            h_cols = st.columns([1, 4, 3, 2, 2, 2, 1, 1, 1])
+            h_cols = st.columns([1, 3, 3, 2, 2, 2, 1, 1, 1, 3])
             h_cols[0].write("**" + _("ID") + "**")
             h_cols[1].write("**" + _("Campaign") + "**")
             h_cols[2].write("**" + _("Client") + "**")
@@ -253,6 +258,7 @@ def list_campaigns():
             h_cols[6].write("**E**")
             h_cols[7].write("**C**")
             h_cols[8].write("**D**")
+            h_cols[9].write("**" + _("Reports") + "**")
             st.divider()
 
             # Display table with actions
@@ -273,7 +279,7 @@ def list_campaigns():
                         has_defective = True
                         break
                 
-                cols = st.columns([1, 4, 3, 2, 2, 2, 1, 1, 1])
+                cols = st.columns([1, 3, 3, 2, 2, 2, 1, 1, 1, 3])
                 cols[0].write(cid_short)
                 
                 c_name_display = c['campaign_name']
@@ -286,12 +292,12 @@ def list_campaigns():
                 cols[4].write(c['end_date'])
                 cols[5].write(_(c['status'].capitalize() if c.get('status') else 'Confirmed'))
                 
-                if cols[6].button("📝", key=f"edit_{c['id']}"):
+                if cols[6].button("📝", key=f"edit_{c['id']}", help=_("Edit Campaign")):
                     st.session_state.mode = "edit"
                     st.session_state.edit_id = c['id']
                     st.rerun()
 
-                if cols[7].button("📋", key=f"copy_{c['id']}"):
+                if cols[7].button("📋", key=f"copy_{c['id']}", help=_("Duplicate Campaign")):
                     try:
                         new_camp = c.copy()
                         new_camp['id'] = None # Let storage generate new ID
@@ -306,8 +312,13 @@ def list_campaigns():
                     except Exception as e:
                         st.error(f"❌ Error duplicating campaign '{c['campaign_name']}': {str(e)}")
                     
-                if cols[8].button("🗑️", key=f"delete_{c['id']}"):
+                if cols[8].button("🗑️", key=f"delete_{c['id']}", help=_("Delete Campaign")):
                     st.session_state.confirm_delete_campaign = c['id']
+
+                if cols[9].button("📈 " + _("Reports"), key=f"fin_rep_{c['id']}", help=_("View Reports & History")):
+                    st.session_state.mode = "reports"
+                    st.session_state.report_campaign_id = c['id']
+                    st.rerun()
                 
                 # Confirmation UI
                 if st.session_state.get('confirm_delete_campaign') == c['id']:
@@ -333,6 +344,96 @@ def list_campaigns():
 
     with tab_timeline:
         render_campaign_timeline()
+    
+    with tab_audit:
+        st.subheader(_("🔍 Gestiune Date Auditate (GPS & VnNox)"))
+        
+        # 1. Select Campaign
+        campaigns_for_audit = storage.get_all_campaigns()
+        if not campaigns_for_audit:
+            st.info(_("Nu există campanii pentru care să importați date."))
+        else:
+            c_options = {c['id']: f"{c['campaign_name']} ({c['client_name']})" for c in campaigns_for_audit}
+            selected_audit_id = st.selectbox(_("Selectați Campania"), options=list(c_options.keys()), format_func=lambda x: c_options[x], key="audit_campaign_selector")
+            
+            if selected_audit_id:
+                audit_camp = storage.get_campaign(selected_audit_id)
+                aud_data = audit_camp.get('audited_data', {})
+                
+                col_a1, col_a2 = st.columns(2)
+                
+                # --- GPS Section ---
+                with col_a1:
+                    st.write("### 📍 GPS Tracking")
+                    gps_file = st.file_uploader(_("Încarcă LOG GPS (CSV)"), type=["csv"], key=f"gps_up_{selected_audit_id}")
+                    
+                    current_km = aud_data.get('gps_stats', {}).get('verified_km', 0.0)
+                    st.metric(_("Distanță Verificată (km)"), f"{current_km:.2f} km")
+                    
+                    if gps_file:
+                        if st.button(_("Procesează GPS"), key=f"proc_gps_{selected_audit_id}"):
+                            try:
+                                import pandas as pd
+                                df_gps = pd.read_csv(gps_file)
+                                # Simple heuristic: if we have 'distance' column, sum it. 
+                                # Otherwise assume 1 ping = 0.5km for demo or count rows.
+                                if 'distance' in df_gps.columns:
+                                    total_dist = df_gps['distance'].sum()
+                                else:
+                                    total_dist = len(df_gps) * 0.1 # Placeholder: 100m per ping
+                                
+                                aud_data['gps_stats'] = {
+                                    'verified_km': float(total_dist),
+                                    'pings': len(df_gps),
+                                    'last_import': datetime.datetime.now().isoformat()
+                                }
+                                audit_camp['audited_data'] = aud_data
+                                storage.save_campaign(audit_camp, selected_audit_id)
+                                st.success(_("Date GPS importate cu succes!"))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Eroare procesare GPS: {e}")
+                
+                # --- VnNox Section ---
+                with col_a2:
+                    st.write("### 📺 Proof of Play (VnNox)")
+                    vnnox_file = st.file_uploader(_("Încarcă Log VnNox/TB"), type=["csv", "txt"], key=f"vn_up_{selected_audit_id}")
+                    
+                    current_hours = aud_data.get('vnnox_stats', {}).get('confirmed_hours', 0.0)
+                    st.metric(_("Ore Difuzare Confirmate"), f"{current_hours:.1f} h")
+                    
+                    if vnnox_file:
+                        if st.button(_("Procesează PoP"), key=f"proc_pop_{selected_audit_id}"):
+                            try:
+                                # Mock VnNox processing
+                                content = vnnox_file.getvalue().decode("utf-8")
+                                spot_count = content.count("PLAY") if "PLAY" in content else len(content.splitlines())
+                                estimated_hours = (spot_count * audit_camp.get('spot_duration', 10)) / 3600
+                                
+                                aud_data['vnnox_stats'] = {
+                                    'confirmed_hours': float(estimated_hours),
+                                    'total_spots': spot_count,
+                                    'last_import': datetime.datetime.now().isoformat()
+                                }
+                                audit_camp['audited_data'] = aud_data
+                                storage.save_campaign(audit_camp, selected_audit_id)
+                                st.success(_("Date Proof of Play importate!"))
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Eroare procesare PoP: {e}")
+                
+                st.divider()
+                
+                # --- Weather Section ---
+                st.write("### ☁️ Factor Corecție Meteo")
+                w_penalty = st.slider(_("Impact Meteo (Penalizare/Bonus %)"), min_value=-50, max_value=20, value=int(aud_data.get('weather_penalty', 0)), help=_("Afectează numărul de afișări auditate în raportul financiar."))
+                
+                if st.button(_("Salvează Factor Meteo"), key=f"save_w_{selected_audit_id}"):
+                    aud_data['weather_penalty'] = float(w_penalty)
+                    audit_camp['audited_data'] = aud_data
+                    storage.save_campaign(audit_camp, selected_audit_id)
+                    st.success(_("Factor meteo actualizat!"))
+                    st.rerun()
 
 def render_scheduler_ui(city, key_prefix, current_periods, current_schedules, min_date, max_date, default_hours):
     """
@@ -1858,19 +1959,20 @@ def campaign_form(edit_id=None):
                         # Ideally I should update ResourceService to handle this split too.
                         # I'll stick to updating vehicle for "Split" demo as that's the main Use Case.
 
-        # Section 6: Financials
-        st.subheader("6. " + _("Financial Details"))
-        col_f1, col_f2, col_f3 = st.columns(3)
-        cost_km = col_f1.number_input(_("Cost per km (€)"), min_value=0.0, value=float(existing_data.get('cost_per_km', 0.0)), step=0.01)
-        fixed_costs = col_f2.number_input(_("Fixed Costs (€)"), min_value=0.0, value=float(existing_data.get('fixed_costs', 0.0)), step=1.0)
-        revenue = col_f3.number_input(_("Expected Revenue (€)"), min_value=0.0, value=float(existing_data.get('expected_revenue', 0.0)), step=1.0)
+        # Section 6: DOOH
+        st.subheader("6. " + _("DOOH Details"))
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        cost_km = col_f1.number_input(_("Cost per km (€)"), min_value=0.0, value=float(existing_data.get('cost_per_km', 0.0)), step=0.01, key=f"cost_km_{edit_id or 'new'}")
+        fixed_costs = col_f2.number_input(_("Fixed Costs (€)"), min_value=0.0, value=float(existing_data.get('fixed_costs', 0.0)), step=1.0, key=f"fixed_costs_{edit_id or 'new'}")
+        revenue = col_f3.number_input(_("Expected Revenue (€)"), min_value=0.0, value=float(existing_data.get('expected_revenue', 0.0)), step=1.0, key=f"revenue_{edit_id or 'new'}")
+        budget_eur = col_f4.number_input(_("Campaign Budget (EUR)"), min_value=0.0, value=float(existing_data.get('budget_eur', 0.0)), step=100.0, key=f"budget_eur_{edit_id or 'new'}", help=_("Used for eCPM calculations in the DOOH Report."))
 
         # Buttons (Outside a form they are regular buttons)
         col_btn1, col_btn2, empty_col = st.columns([1, 1, 2])
-        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", width="stretch")
-        generate = col_btn2.button("🚀 " + _("Save & Generate PDF"), width="stretch")
+        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", use_container_width=True)
+        view_reports = col_btn2.button("📈 " + _("Save & Manage Reports"), use_container_width=True)
 
-        if submitted or generate:
+        if submitted or view_reports:
             if not client_name or not campaign_name:
                 st.error(_("Please provide Client and Campaign names."))
             elif not selected_vehicle_ids:
@@ -1941,6 +2043,8 @@ def campaign_form(edit_id=None):
                     'expected_revenue': revenue,
                     'has_spots': has_spots,
                     'spot_count': spot_count,
+                    'budget_eur': budget_eur,
+                    'audited_data': existing_data.get('audited_data', {}),
                     'status': status
                 }
                 
@@ -1950,40 +2054,153 @@ def campaign_form(edit_id=None):
                         st.session_state.last_saved_id = saved_id
                         st.success(_("✅ Campaign saved successfully! ID:") + f" {saved_id[:8]}")
                         
-                        if generate:
-                            st.session_state.trigger_download = True
+                        if view_reports:
+                            st.session_state.mode = "reports"
+                            st.session_state.report_campaign_id = saved_id
+                            st.rerun()
                     else:
                         st.error(_("❌ Failed to save campaign. The operation returned no ID. Check logs for details."))
                 except Exception as e:
                     st.error(f"❌ Error saving campaign: {str(e)}")
 
-    # Handle download outside the form
-    if st.session_state.get("trigger_download") and st.session_state.get("last_saved_id"):
-        with st.spinner(_("Generating PDF Report...")):
-            gen = CampaignReportGenerator(data_manager=None)
-            # We need full hydrated data for generator
-            full_data = storage.get_campaign(st.session_state.last_saved_id)
-            # Ensure output dir exists
-            from src.data.company_settings import CompanySettings
-            settings = CompanySettings().get_settings()
-            output_dir = settings.get('reports_output_path')
-            if not output_dir: # Fallback if empty string or missing
-                output_dir = os.path.join(root_dir, 'reports')
-            
-            if not os.path.exists(output_dir): 
-                os.makedirs(output_dir)
-            
-            pdf_path = gen.generate_campaign_report(full_data, output_dir=output_dir)
-            
-            with open(pdf_path, "rb") as f:
-                st.download_button(
-                    label="📥 " + _("Download PDF Report"),
-                    data=f,
-                    file_name=os.path.basename(pdf_path),
-                    mime="application/pdf"
-                )
-            # Reset the trigger
-            st.session_state.trigger_download = False
+    # Remove legacy trigger_download block - consolidated in reports dashboard
+
+def render_reporting_interface(campaign_id):
+    """
+    Dedicated interface for generating reports and tracking history.
+    Enforces sequential generation: Campaign Report -> DOOH Report.
+    """
+    c = storage.get_campaign(campaign_id)
+    if not c:
+        st.error(_("Campaign not found."))
+        if st.button(_("Back to List")):
+            st.session_state.mode = "list"
+            st.rerun()
+        return
+
+    st.title(f"📈 Reporting Dashboard")
+    st.subheader(f"Campaign: {c['campaign_name']} ({c['client_name']})")
+    
+    col_nav1, col_nav2 = st.columns([1, 5])
+    if col_nav1.button("⬅️ " + _("Back to List"), key="back_to_list_top"):
+        st.session_state.mode = "list"
+        st.rerun()
+    if col_nav2.button("📝 " + _("Edit Campaign"), key="back_to_edit"):
+        st.session_state.mode = "edit"
+        st.session_state.edit_id = campaign_id
+        st.rerun()
+
+    st.divider()
+
+    # Get history
+    history = rep_storage.get_reports_by_campaign(campaign_id)
+    latest_standard = rep_storage.get_latest_metrics(campaign_id, 'standard')
+    
+    col1, col2 = st.columns(2)
+
+    # --- 1. Standard Campaign Report ---
+    with col1:
+        st.markdown(f"### 📋 " + _("Standard Campaign Report"))
+        st.info(_("Contains basic metrics like impressions, reach, and OTS based on city data."))
+        
+        if st.button("🚀 " + _("Generate New Standard Report"), key="gen_std", type="primary", use_container_width=True):
+            with st.spinner(_("Generating...")):
+                gen = CampaignReportGenerator(storage)
+                path = gen.generate_campaign_report(c)
+                if path:
+                    st.success(_("Success!"))
+                    st.rerun()
+
+        # Download Latest
+        std_reports = [h for h in history if h['report_type'] == 'standard']
+        if std_reports:
+            latest = std_reports[0]
+            if os.path.exists(latest['file_path']):
+                with open(latest['file_path'], "rb") as f:
+                    st.download_button(
+                        label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
+                        data=f,
+                        file_name=latest['file_name'],
+                        mime="application/pdf",
+                        key="dl_std_latest",
+                        use_container_width=True
+                    )
+            else:
+                st.warning(_("PDF file not found on disk."))
+
+    # --- 2. DOOH Report ---
+    with col2:
+        st.markdown(f"### 💰 " + _("Raport DOOH"))
+        st.info(_("Includes eCPM, Media Value, and adjustments from GPS/VnNox logs."))
+        
+        if not latest_standard:
+            st.warning("⚠️ " + _("Sequential Logic: You must generate a **Standard Report** first to establish baseline impressions for the DOOH Report."))
+            st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin_locked", disabled=True, use_container_width=True)
+        else:
+            if st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin", type="primary", use_container_width=True):
+                with st.spinner(_("Generating...")):
+                    gen = DoohReportGenerator(storage)
+                    path = gen.generate_dooh_report(c)
+                    if path:
+                        st.success(_("Success!"))
+                        st.rerun()
+
+        # Download Latest
+        fin_reports = [h for h in history if h['report_type'] == 'dooh']
+        if fin_reports:
+            latest = fin_reports[0]
+            if os.path.exists(latest['file_path']):
+                with open(latest['file_path'], "rb") as f:
+                    st.download_button(
+                        label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
+                        data=f,
+                        file_name=latest['file_name'],
+                        mime="application/pdf",
+                        key="dl_fin_latest",
+                        use_container_width=True
+                    )
+            else:
+                st.warning(_("PDF file not found on disk."))
+
+    st.divider()
+    
+    # --- 3. Full History Table ---
+    if history:
+        st.write("### 📜 " + _("Generation History"))
+        h_data = []
+        for h in history:
+            h_type = "📋 Campaign" if h['report_type'] == 'standard' else "💰 DOOH"
+            h_data.append({
+                _("Date"): h['created_at'].replace('T', ' ')[:19],
+                _("Type"): h_type,
+                _("File"): h['file_name'],
+                "id": h['id'],
+                "path": h['file_path']
+            })
+        
+        df_h = pd.DataFrame(h_data)
+        st.dataframe(df_h[[_("Date"), _("Type"), _("File")]], use_container_width=True)
+        
+        # Individual Downloads
+        sel_repo = st.selectbox(_("Select a report to download from history"), options=df_h.index, format_func=lambda x: f"{df_h.iloc[x][_('Date')]} - {df_h.iloc[x][_( 'Type')]}")
+        if sel_repo is not None:
+            r_path = df_h.iloc[sel_repo]['path']
+            r_name = df_h.iloc[sel_repo][_("File")]
+            if os.path.exists(r_path):
+                with open(r_path, "rb") as f:
+                    st.download_button(
+                        label="📥 " + _("Download Selected Report"),
+                        data=f,
+                        file_name=r_name,
+                        mime="application/pdf",
+                        key=f"dl_hist_{sel_repo}"
+                    )
+            else:
+                st.error(_("File no longer exists."))
+
+    if st.button("⬅️ " + _("Back to List"), key="back_to_list_bottom"):
+        st.session_state.mode = "list"
+        st.rerun()
 
 def main():
     if "mode" not in st.session_state:
@@ -1995,6 +2212,8 @@ def main():
         campaign_form()
     elif st.session_state.mode == "edit":
         campaign_form(st.session_state.edit_id)
+    elif st.session_state.mode == "reports":
+        render_reporting_interface(st.session_state.report_campaign_id)
 
 if __name__ == "__main__":
     main()

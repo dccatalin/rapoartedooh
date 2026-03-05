@@ -295,7 +295,7 @@ TRANSLATIONS = {
         'Current Spots': '### Spoturi Curente',
         '📥 Export Media Plan': '📥 Exportă Planul Media',
         'Spot updated!': 'Spot actualizat!',
-        '6. Financial Details': '6. Detalii Financiare',
+        '6. DOOH Details': '6. Detalii DOOH',
         'Cost per km (€)': 'Cost per km (€)',
         'Fixed Costs (€)': 'Costuri Fixe (€)',
         'Expected Revenue (€)': 'Venit Estimat (€)',
