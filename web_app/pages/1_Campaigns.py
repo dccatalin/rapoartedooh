@@ -5,6 +5,10 @@ import pandas as pd
 import os
 import plotly.express as px
 import uuid
+import folium
+from streamlit_folium import st_folium
+from folium.plugins import Draw
+import json
 
 # Initialize
 root_dir = utils.init_path()
@@ -27,8 +31,10 @@ from src.reporting.campaign_report_generator import CampaignReportGenerator
 from src.reporting.dooh_report_generator import DoohReportGenerator
 from src.reporting.fleet_utilization_report import FleetUtilizationReportGenerator
 from src.data.report_storage import ReportStorage
+from src.data.campaign_route_manager import CampaignRouteManager
 
 rep_storage = ReportStorage()
+route_manager = CampaignRouteManager()
 
 CAMPAIGN_MODES = {
     'NEARBY_TOUR': {
@@ -2095,18 +2101,7 @@ def campaign_form(edit_id=None):
                         # We need replace_driver_in_campaign (split logic).
                         # I'll implement a simple split logic here or call a service method if I add one.
                         # For now, I'll update the record but prompt user if they want split?
-                        # User explicitly asked for "transfer... split" logic.
-                        # I should probably reuse replace_vehicle logic but for driver?
-                        # Driver is a property of the vehicle usually.
-                        # If we replace driver, we actually just update the 'driver_id' on the campaign.
-                        # I will add replace_driver_in_campaign to ResourceService or just do it here.
-                        # Let's call a method I'll add quickly to Service, or logic inline.
-                        
-                        # Wait, replace_vehicle logic creates a new campaign.
-                        # I can reuse it if I just Pass the SAME vehicle but DIFFERENT driver?
-                        # No, new campaign creation copies driver from OLD campaign.
-                        
-                        # I will add specific logic:
+                        # I'll stick to updating vehicle for "Split" demo as that's the main Use Case.
                         st.info(_("Driver replacement currently updates the campaign record. For strict history splitting, please enable 'Strict Mode' (Coming Soon)."))
                         # Just update current campaign for now as I verified models.py has driver_id
                         existing_data['driver_id'] = new_d_id
@@ -2114,6 +2109,101 @@ def campaign_form(edit_id=None):
                         st.success(_("Driver updated."))
                         # Ideally I should update ResourceService to handle this split too.
                         # I'll stick to updating vehicle for "Split" demo as that's the main Use Case.
+
+        # Section 5.5: Campaign Routes & Map
+        if edit_id:
+            st.markdown("---")
+            st.subheader("🗺️ 5.5 " + _("Campaign Routes & Interactive Map"))
+            st.info(_("Define specific routes for this campaign. You can draw routes and assign them to specific vehicles or schedules."))
+            
+            # Fetch existing routes
+            routes = existing_data.get('routes', [])
+            
+            if routes:
+                for idx, r in enumerate(routes):
+                    with st.expander(f"🛣️ {r['name']} ({r.get('time_start', 'All day')})", expanded=False):
+                        r_col1, r_col2 = st.columns([3, 1])
+                        r_col1.write(f"**Vehicle:** {vehicle_options.get(r['vehicle_id'], 'Any')}")
+                        r_col1.write(f"**Schedule:** {r['date_start'] or 'Start'} → {r['date_end'] or 'End'}")
+                        
+                        if r_col2.button("🗑️ " + _("Delete"), key=f"del_route_{r['id']}"):
+                            route_manager.delete_route(r['id'])
+                            st.rerun()
+            
+            # Add New Route Form
+            with st.expander("➕ " + _("Add New Campaign Route")):
+                # Map for drawing/viewing
+                st.write(_("Draw the campaign route on the map below:"))
+                
+                # Center on first target city if possible
+                m_lat, m_lon = 44.4268, 26.1025 # Bucharest default
+                if existing_data.get('cities'):
+                    city_profile = city_manager.get_city_profile(existing_data['cities'][0])
+                    if city_profile and 'latitude' in city_profile:
+                        m_lat = city_profile['latitude']
+                        m_lon = city_profile['longitude']
+                
+                m = folium.Map(location=[m_lat, m_lon], zoom_start=12)
+                draw = Draw(
+                    export=True,
+                    filename='route.geojson',
+                    position='topleft',
+                    draw_options={
+                        'polyline': True,
+                        'rectangle': False,
+                        'polygon': False,
+                        'circle': False,
+                        'marker': True,
+                        'circlemarker': False,
+                    },
+                    edit_options={'remove': True}
+                )
+                draw.add_to(m)
+                
+                # Display existing routes on this map too
+                for r in routes:
+                    if r.get('geojson_data'):
+                        try:
+                            folium.GeoJson(r['geojson_data'], name=r['name']).add_to(m)
+                        except:
+                            pass
+
+                output = st_folium(m, height=400, width=700, key="campaign_route_map")
+                
+                with st.form("new_route_form"):
+                    nr_name = st.text_input(_("Route Name"), value=f"Route {len(routes) + 1}")
+                    nr_veh = st.selectbox(_("Assigned Vehicle"), options=[""] + list(vehicle_options.keys()), format_func=lambda x: vehicle_options.get(x, _("Any Vehicle")))
+                    
+                    nr_col1, nr_col2 = st.columns(2)
+                    nr_start = nr_col1.date_input(_("Allocation Start"), value=start_date)
+                    nr_end = nr_col2.date_input(_("Allocation End"), value=end_date)
+                    
+                    nr_t_col1, nr_t_col2 = st.columns(2)
+                    nr_t_start = nr_t_col1.text_input(_("Time Start"), value="08:00", help="HH:MM")
+                    nr_t_end = nr_t_col2.text_input(_("Time End"), value="20:00", help="HH:MM")
+                    
+                    if st.form_submit_button(_("Save Route")):
+                        # Get GeoJSON from map output
+                        geojson = None
+                        if output and 'all_drawings' in output and output['all_drawings']:
+                            geojson = output['all_drawings'][-1] # Take the last drawing
+                            
+                        if not geojson:
+                            st.error(_("Please draw a route on the map first."))
+                        else:
+                            route_data = {
+                                'campaign_id': edit_id,
+                                'name': nr_name,
+                                'geojson_data': geojson,
+                                'vehicle_id': nr_veh if nr_veh else None,
+                                'date_start': nr_start,
+                                'date_end': nr_end,
+                                'time_start': nr_t_start,
+                                'time_end': nr_t_end
+                            }
+                            route_manager.add_route(route_data)
+                            st.success(_("Route added!"))
+                            st.rerun()
 
         # Section 6: DOOH
         st.subheader("6. " + _("DOOH Details"))
@@ -2317,13 +2407,14 @@ def render_reporting_interface(campaign_id):
         
         incl_spots = st.checkbox(remove_diacritics(_("✅ Include tabel spoturi VnNox")), value=True, key="pop_chk_spots")
         incl_map   = st.checkbox(remove_diacritics(_("🗺️ Include harta traseu GPS")),   value=True, key="pop_chk_map")
+        incl_photos = st.checkbox(remove_diacritics(_("📸 Include Galerie Foto PoP")), value=True, key="pop_chk_photos")
         
         if st.button("🚀 " + remove_diacritics(_("Generează Anexă PoP")), key="gen_pop", type="primary", use_container_width=True):
             with st.spinner(remove_diacritics(_("Generare Anexă..."))):
                 try:
                     from src.reporting.pop_annex_report_generator import PopAnnexReportGenerator
                     gen = PopAnnexReportGenerator(storage)
-                    path = gen.generate_pop_annex(c, include_map=incl_map, include_spots=incl_spots)
+                    path = gen.generate_pop_annex(c, include_map=incl_map, include_spots=incl_spots, include_photos=incl_photos)
                     if path:
                         st.success(remove_diacritics(_("Anexă generată!")))
                         st.rerun()
@@ -2346,7 +2437,27 @@ def render_reporting_interface(campaign_id):
                 st.warning(_("PDF file not found on disk."))
 
     st.divider()
+
+    # --- Photo Upload for PoP Evidence ---
+    st.subheader("📸 " + _("Galerie Foto Proof of Play"))
+    st.info(_("Incarcati fotografii realizate pe teren pentru a fi incluse automat in Anexa PoP."))
     
+    uploaded_photos = st.file_uploader(_("Adauga poze (JPG/PNG)"), type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"photo_uploader_{campaign_id}")
+    
+    if uploaded_photos:
+        photo_dir = os.path.join('data', 'campaign_photos', str(campaign_id))
+        if not os.path.exists(photo_dir):
+            os.makedirs(photo_dir, exist_ok=True)
+            
+        for uploaded_file in uploaded_photos:
+            file_path = os.path.join(photo_dir, uploaded_file.name)
+            if not os.path.exists(file_path):
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+        st.success(_("Fotografii salvate cu succes!"))
+
+    st.divider()
+
     # --- 3. Full History with CRUD ---
     if history:
         st.write("### 📜 " + _("Istoric Rapoarte Generate"))

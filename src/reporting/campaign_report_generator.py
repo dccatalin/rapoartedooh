@@ -232,11 +232,16 @@ class CampaignReportGenerator(ReportGenerator):
         effective_driving_hours = total_km / speed_kmh if speed_kmh > 0 else 0
         return {'total_km': int(total_km), 'effective_driving_hours': round(effective_driving_hours, 1), 'route_loops': round(total_km / avg_commute_distance_km, 1) if avg_commute_distance_km > 0 else 0, 'used_known_distance': used_known_distance}
 
-    def _calculate_impressions_by_mode(self, modal_split, daily_traffic, daily_pedestrian, campaign_hours_per_day, total_days, start_date, city_name, spot_duration=10, loop_duration=60, is_exclusive=False, city_schedule=None):
+    def _calculate_impressions_by_mode(self, modal_split, daily_traffic, daily_pedestrian, campaign_hours_per_day, total_days, start_date, city_name, spot_duration=10, loop_duration=60, is_exclusive=False, city_schedule=None, active_routes=None, city_locations=None):
         share_of_voice = 1.0 if is_exclusive else (spot_duration / loop_duration if loop_duration > 0 else 0.16)
-        hourly_traffic_base, hourly_pedestrian_base = daily_traffic / 24, daily_pedestrian / 24
+        
+        # Base hourly estimate from city wide data
+        hourly_traffic_city_avg = daily_traffic / 24
+        hourly_pedestrian_city_avg = daily_pedestrian / 24
+        
         total_campaign_traffic, total_campaign_pedestrian = 0, 0
         current_date, events_encountered = start_date, []
+        
         for i in range(total_days):
             date_str = current_date.strftime('%Y-%m-%d')
             hours_today = campaign_hours_per_day
@@ -244,16 +249,101 @@ class CampaignReportGenerator(ReportGenerator):
                 day_data = city_schedule[date_str]
                 if not day_data.get('active', True): hours_today = 0
                 elif day_data.get('hours'): hours_today = self._parse_daily_hours(day_data['hours'])['hours']
+            
             if hours_today > 0:
+                # ROUTE & TRAFFIC LOCATION BLENDING
+                # If we have routes for today, check intersection with BRAT locations
+                h_traffic, h_pedestrian = hourly_traffic_city_avg, hourly_pedestrian_city_avg
+                
+                if active_routes and city_locations:
+                    # Filter routes for today
+                    routes_today = [r for r in active_routes if self._is_route_active(r, current_date)]
+                    if routes_today:
+                        # Find intersections
+                        intersected_locs = self._find_intersected_locations(routes_today, city_locations)
+                        if intersected_locs:
+                            # Use average of audited locations instead of city wide average
+                            h_traffic = sum(l.daily_traffic for l in intersected_locs) / len(intersected_locs) / 24
+                            h_pedestrian = sum(l.pedestrian_traffic for l in intersected_locs) / len(intersected_locs) / 24
+
                 t_mult, p_mult, event_name = self.city_manager.get_event_multipliers(city_name, current_date)
                 if event_name and event_name not in events_encountered: events_encountered.append(event_name)
-                total_campaign_traffic += hourly_traffic_base * hours_today * t_mult
-                total_campaign_pedestrian += hourly_pedestrian_base * hours_today * p_mult
+                
+                total_campaign_traffic += h_traffic * hours_today * t_mult
+                total_campaign_pedestrian += h_pedestrian * hours_today * p_mult
+                
             current_date += datetime.timedelta(days=1)
-        auto_traffic, cycling_traffic, walking_traffic = total_campaign_traffic * (modal_split.get('auto', 35) / 100), total_campaign_traffic * (modal_split.get('cycling', 4) / 100), total_campaign_pedestrian * (modal_split.get('walking', 27) / 100)
+            
+        auto_traffic = total_campaign_traffic * (modal_split.get('auto', 35) / 100)
+        cycling_traffic = total_campaign_traffic * (modal_split.get('cycling', 4) / 100)
+        walking_traffic = total_campaign_pedestrian * (modal_split.get('walking', 27) / 100)
+        
         visibility_factor = 1.0 if is_exclusive else 0.7
-        auto_impressions, pedestrian_impressions = auto_traffic * 1.65 * visibility_factor * share_of_voice, (walking_traffic + cycling_traffic) * visibility_factor * share_of_voice
-        return {'auto': int(auto_impressions), 'pedestrian': int(pedestrian_impressions), 'total': int(auto_impressions + pedestrian_impressions), 'events': events_encountered, 'share_of_voice': share_of_voice}
+        auto_impressions = auto_traffic * 1.65 * visibility_factor * share_of_voice
+        pedestrian_impressions = (walking_traffic + cycling_traffic) * visibility_factor * share_of_voice
+        
+        return {
+            'auto': int(auto_impressions), 
+            'pedestrian': int(pedestrian_impressions), 
+            'total': int(auto_impressions + pedestrian_impressions), 
+            'events': events_encountered, 
+            'share_of_voice': share_of_voice
+        }
+
+    def _is_route_active(self, route: dict, current_date: datetime.date) -> bool:
+        """Check if a route is active on a specific date"""
+        r_start = datetime.date.fromisoformat(route['date_start']) if isinstance(route.get('date_start'), str) else route.get('date_start')
+        r_end = datetime.date.fromisoformat(route['date_end']) if isinstance(route.get('date_end'), str) else route.get('date_end')
+        
+        if r_start and current_date < r_start: return False
+        if r_end and current_date > r_end: return False
+        return True
+
+    def _find_intersected_locations(self, routes: list, locations: list) -> list:
+        """Identify which TrafficLocations are near the segments of the given routes"""
+        import math
+        intersected = []
+        
+        for loc in locations:
+            loc_lat, loc_lon = loc.latitude, loc.longitude
+            hit = False
+            for r in routes:
+                geojson = r.get('geojson_data')
+                if not geojson: continue
+                
+                # geojson is from st_folium 'all_drawings', usually a feature list or a single feature
+                # If it's a list, check each. If it's a polyline, check points.
+                geometry = geojson.get('geometry', {})
+                coords = geometry.get('coordinates', [])
+                
+                if geometry.get('type') == 'Point':
+                    # Distance between two points
+                    dist = self._haversine(loc_lat, loc_lon, coords[1], coords[0])
+                    if dist < 0.1: # 100 meters
+                        hit = True
+                elif geometry.get('type') == 'LineString':
+                    # Check each point in the line
+                    for pt in coords:
+                        dist = self._haversine(loc_lat, loc_lon, pt[1], pt[0])
+                        if dist < 0.1: # 100 meters
+                            hit = True
+                            break
+                
+                if hit: break
+            if hit: intersected.append(loc)
+        return intersected
+
+    def _haversine(self, lat1, lon1, lat2, lon2):
+        """Calculate distance between two GPS points in KM"""
+        import math
+        R = 6371 # Earth radius in KM
+        dLat = math.radians(lat2 - lat1)
+        dLon = math.radians(lon2 - lon1)
+        a = math.sin(dLat/2) * math.sin(dLat/2) + \
+            math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
+            math.sin(dLon/2) * math.sin(dLon/2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        return R * c
 
     def _calculate_ots_and_reach(self, total_impressions, route_loops, active_population):
         coverage_factor = min(route_loops / 10, 1.0)
@@ -279,6 +369,10 @@ class CampaignReportGenerator(ReportGenerator):
         shared_mode = meta.get('shared_mode', True)
         cities = data.get('cities', []) or ([data['city']] if data.get('city') else [])
         default_modal_split = {'auto': 35, 'walking': 27, 'cycling': 4, 'public_transport': 34}
+        
+        # Fetch Routes
+        all_routes = data.get('routes', [])
+        
         if not shared_mode:
             for v_id in all_vids:
                 if not v_id: continue
@@ -289,6 +383,10 @@ class CampaignReportGenerator(ReportGenerator):
                 v_itinerary = data.get('city_periods', {}).get(v_id, {})
                 v_schedules_map = data.get('city_schedules', {}).get(v_id, {})
                 if not isinstance(v_itinerary, dict): continue
+                
+                # Filter routes for this vehicle
+                v_routes = [r for r in all_routes if r.get('vehicle_id') == v_id or r.get('vehicle_id') is None]
+
                 for city_name, periods in v_itinerary.items():
                     c_schedule = v_schedules_map.get(city_name, {}) if isinstance(v_schedules_map, dict) else {}
                     period = periods[0] if isinstance(periods, list) and periods else (periods if isinstance(periods, dict) else {})
@@ -296,9 +394,28 @@ class CampaignReportGenerator(ReportGenerator):
                     c_start = datetime.date.fromisoformat(period['start'][:10]) if isinstance(period.get('start'), str) else period.get('start')
                     c_end = datetime.date.fromisoformat(period['end'][:10]) if isinstance(period.get('end'), str) else period.get('end')
                     if not c_start or not c_end: continue
+                    
                     city_profile = self.city_manager.get_city_data_for_period(city_name, c_start)
                     if not city_profile: continue
-                    inc = self._calculate_impressions_by_mode(city_profile.get('modal_split', default_modal_split), city_profile.get('daily_traffic_total', 50000), city_profile.get('daily_pedestrian_total', 50000), duration_metrics['hours_per_day'], (c_end - c_start).days+1, c_start, city_name, spot_duration=data.get('spot_duration', 10), loop_duration=data.get('loop_duration', 60), is_exclusive=data.get('is_exclusive', False), city_schedule=c_schedule)
+                    
+                    # Fetch BRAT Locations for this city
+                    city_locations = self.city_manager.get_all_traffic_locations(city_name)
+                    
+                    inc = self._calculate_impressions_by_mode(
+                        city_profile.get('modal_split', default_modal_split), 
+                        city_profile.get('daily_traffic_total', 50000), 
+                        city_profile.get('daily_pedestrian_total', 50000), 
+                        duration_metrics['hours_per_day'], 
+                        (c_end - c_start).days+1, 
+                        c_start, 
+                        city_name, 
+                        spot_duration=data.get('spot_duration', 10), 
+                        loop_duration=data.get('loop_duration', 60), 
+                        is_exclusive=data.get('is_exclusive', False), 
+                        city_schedule=c_schedule,
+                        active_routes=v_routes,
+                        city_locations=city_locations
+                    )
                     total_impressions_data['auto'] += inc['auto'] * scrop_mult
                     total_impressions_data['pedestrian'] += inc['pedestrian'] * scrop_mult
                     total_impressions_data['total'] += inc['total'] * scrop_mult
@@ -315,13 +432,32 @@ class CampaignReportGenerator(ReportGenerator):
                 if isinstance(periods, dict): periods = [periods]
                 all_schedules = data.get('city_schedules', {})
                 c_schedule = all_schedules.get(city_name)
+                
+                # Fetch BRAT Locations for this city
+                city_locations = self.city_manager.get_all_traffic_locations(city_name)
+
                 for period in periods:
                     c_start = datetime.date.fromisoformat(period['start'][:10]) if isinstance(period.get('start'), str) else period.get('start')
                     c_end = datetime.date.fromisoformat(period['end'][:10]) if isinstance(period.get('end'), str) else period.get('end')
                     if not c_start or not c_end: continue
                     city_profile = self.city_manager.get_city_data_for_period(city_name, c_start)
                     if not city_profile: continue
-                    inc = self._calculate_impressions_by_mode(city_profile.get('modal_split', default_modal_split), city_profile.get('daily_traffic_total', 50000), city_profile.get('daily_pedestrian_total', 50000), duration_metrics['hours_per_day'], (c_end - c_start).days+1, c_start, city_name, spot_duration=data.get('spot_duration', 10), loop_duration=data.get('loop_duration', 60), is_exclusive=data.get('is_exclusive', False), city_schedule=c_schedule)
+                    
+                    inc = self._calculate_impressions_by_mode(
+                        city_profile.get('modal_split', default_modal_split), 
+                        city_profile.get('daily_traffic_total', 50000), 
+                        city_profile.get('daily_pedestrian_total', 50000), 
+                        duration_metrics['hours_per_day'], 
+                        (c_end - c_start).days+1, 
+                        c_start, 
+                        city_name, 
+                        spot_duration=data.get('spot_duration', 10), 
+                        loop_duration=data.get('loop_duration', 60), 
+                        is_exclusive=data.get('is_exclusive', False), 
+                        city_schedule=c_schedule,
+                        active_routes=all_routes,
+                        city_locations=city_locations
+                    )
                     total_impressions_data['auto'] += inc['auto'] * scrop_mult_total
                     total_impressions_data['pedestrian'] += inc['pedestrian'] * scrop_mult_total
                     total_impressions_data['total'] += inc['total'] * scrop_mult_total

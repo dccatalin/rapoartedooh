@@ -102,7 +102,10 @@ def main():
             if profile:
                 st.header(_("Editing") + f": {selected_city}")
                 
-                # Update Preference
+                tab_general, tab_traffic = st.tabs(["📊 General & Demografie", "📍 Puncte Fixe de Trafic (BRAT)"])
+                
+                with tab_general:
+                    # Update Preference
                 prefs = ["public", "ins", "brat", "manual"]
                 current_pref = city_manager.get_update_preference(selected_city)
                 
@@ -118,20 +121,20 @@ def main():
                         st.success(_("Data update mode changed to") + f" {new_pref}")
                 
                 # Full Demographics & Modal Split Form
-                with st.form("city_full_edit"):
-                    st.subheader("📊 " + _("Demographics"))
-                    d_col1, d_col2 = st.columns(2)
-                    pop = d_col1.number_input(_("Population"), value=int(profile.get('population', 0)), step=1000)
-                    county = d_col2.text_input(_("County"), value=profile.get('county', ""))
-                    
-                    active_pop = d_col1.slider(_("Active Population %"), 0, 100, value=int(profile.get('active_population_pct', 58)))
-                    commute = d_col2.number_input(_("Avg Commute (km)"), value=float(profile.get('avg_commute_distance_km', 8.0)), step=0.5)
-                    
-                    traffic = d_col1.number_input(_("Daily Traffic (vehicles)"), value=int(profile.get('daily_traffic_total', 0)), step=100)
-                    pedes = d_col2.number_input(_("Daily Pedestrians"), value=int(profile.get('daily_pedestrian_total', 0)), step=100)
-                    
-                    st.divider()
-                    st.subheader("🚇 Modal Split (%)")
+                    with st.form("city_full_edit"):
+                        st.subheader("📊 " + _("Demographics"))
+                        d_col1, d_col2 = st.columns(2)
+                        pop = d_col1.number_input(_("Population"), value=int(profile.get('population', 0)), step=1000)
+                        county = d_col2.text_input(_("County"), value=profile.get('county', ""))
+                        
+                        active_pop = d_col1.slider(_("Active Population %"), 0, 100, value=int(profile.get('active_population_pct', 58)))
+                        commute = d_col2.number_input(_("Avg Commute (km)"), value=float(profile.get('avg_commute_distance_km', 8.0)), step=0.5)
+                        
+                        traffic = d_col1.number_input(_("Daily Traffic (vehicles)"), value=int(profile.get('daily_traffic_total', 0)), step=100)
+                        pedes = d_col2.number_input(_("Daily Pedestrians"), value=int(profile.get('daily_pedestrian_total', 0)), step=100)
+                        
+                        st.divider()
+                        st.subheader("🚇 Modal Split (%)")
                     ms = profile.get('modal_split', {})
                     
                     m_col1, m_col2 = st.columns(2)
@@ -262,6 +265,63 @@ def main():
                     if c_del2.button(_("Cancel"), key=f"cancel_del_city", width="stretch"):
                         del st.session_state.confirm_delete_city
                         st.rerun()
+                        
+                with tab_traffic:
+                    st.subheader("📍 Lociții de date fixe (Intersecții Auditate)")
+                    
+                    locs = city_manager.get_all_traffic_locations(selected_city)
+                    if locs:
+                        df_locs = pd.DataFrame([{
+                            "ID": loc.id,
+                            "Nume Loco": loc.name,
+                            "Sursă": loc.source,
+                            "Trafic Auto": loc.daily_traffic,
+                            "Pietoni": loc.pedestrian_traffic,
+                            "Lat": loc.latitude,
+                            "Lon": loc.longitude
+                        } for loc in locs])
+                        
+                        st.dataframe(df_locs, use_container_width=True, hide_index=True)
+                        
+                        # Show points on map
+                        st.map(df_locs.rename(columns={"Lat": "lat", "Lon": "lon"}))
+                        
+                        # Delete location
+                        del_id = st.selectbox("Șterge Locație", ["Alege o locație..."] + [loc.id for loc in locs])
+                        if del_id != "Alege o locație...":
+                            if st.button("Sterge definitiv"):
+                                city_manager.delete_traffic_location(del_id)
+                                st.rerun()
+                    else:
+                        st.info("Nu există puncte fixe adăugate pentru acest oraș.")
+                        
+                    with st.expander("➕ Adaugă Locație Fixă"):
+                        with st.form("add_traffic_loc"):
+                            loc_name = st.text_input("Denumire (ex: Piața Unirii, Intersecție BRAT #123)")
+                            col_ll1, col_ll2 = st.columns(2)
+                            loc_lat = col_ll1.number_input("Latitudine", format="%f")
+                            loc_lon = col_ll2.number_input("Longitudine", format="%f")
+                            
+                            col_dt1, col_dt2 = st.columns(2)
+                            loc_dt = col_dt1.number_input("Trafic Auto Zilnic", min_value=0, step=100)
+                            loc_pt = col_dt2.number_input("Pietoni Zilnic", min_value=0, step=100)
+                            
+                            loc_source = st.selectbox("Sursă Date", ["BRAT", "PMUD", "Studiu Local", "Estimare"])
+                            loc_notes = st.text_area("Note / Restricții")
+                            
+                            if st.form_submit_button("Salvează Locație"):
+                                city_manager.add_traffic_location({
+                                    "name": loc_name,
+                                    "city_name": selected_city,
+                                    "latitude": loc_lat,
+                                    "longitude": loc_lon,
+                                    "daily_traffic": loc_dt,
+                                    "pedestrian_traffic": loc_pt,
+                                    "source": loc_source,
+                                    "notes": loc_notes
+                                })
+                                st.success("Locație fixă adăugată!")
+                                st.rerun()
 
 if __name__ == "__main__":
     main()

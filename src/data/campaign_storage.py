@@ -139,8 +139,17 @@ class CampaignStorage:
             'audited_data': campaign.audited_data or {},
             'is_archived': campaign.is_archived,
             'created_at': campaign.created_at.isoformat() if campaign.created_at else None,
-            'last_modified': campaign.last_modified.isoformat() if campaign.last_modified else None
+            'last_modified': campaign.last_modified.isoformat() if campaign.last_modified else None,
+            
+            # Hydrate Campaign Routes
+            'routes': self._get_hydrated_routes(campaign.id)
         }
+
+    def _get_hydrated_routes(self, campaign_id: str) -> List[Dict[str, Any]]:
+        """Hydrate routes for a campaign using CampaignRouteManager"""
+        from src.data.campaign_route_manager import CampaignRouteManager
+        crm = CampaignRouteManager()
+        return crm.get_routes_for_campaign(campaign_id)
 
     def save_campaign(self, campaign_data: Dict[str, Any], campaign_id: Optional[str] = None) -> str:
         """

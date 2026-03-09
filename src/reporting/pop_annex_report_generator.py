@@ -32,7 +32,7 @@ class PopAnnexReportGenerator(ReportGenerator):
         self.report_storage = ReportStorage()
 
     def generate_pop_annex(self, campaign_data, include_map=True,
-                           include_spots=True, output_dir=None) -> str:
+                           include_spots=True, include_photos=True, output_dir=None) -> str:
         """
         Generate the PoP Annex PDF.
 
@@ -58,7 +58,8 @@ class PopAnnexReportGenerator(ReportGenerator):
         )
 
         self._build_pdf(campaign_data, output_path,
-                        include_map=include_map, include_spots=include_spots)
+                        include_map=include_map, include_spots=include_spots,
+                        include_photos=include_photos)
         self._open_report(output_path)
 
         # Persist metadata
@@ -71,6 +72,7 @@ class PopAnnexReportGenerator(ReportGenerator):
                 frozen_data={
                     'include_map': include_map,
                     'include_spots': include_spots,
+                    'include_photos': include_photos,
                 }
             )
         except Exception as e:
@@ -84,7 +86,7 @@ class PopAnnexReportGenerator(ReportGenerator):
     # Internal PDF builder
     # ------------------------------------------------------------------
 
-    def _build_pdf(self, data, output_path, include_map, include_spots):
+    def _build_pdf(self, data, output_path, include_map, include_spots, include_photos):
         doc = SimpleDocTemplate(output_path, pagesize=letter)
         story = []
         accent = colors.HexColor('#0d47a1')
@@ -264,14 +266,12 @@ class PopAnnexReportGenerator(ReportGenerator):
             story.append(Spacer(1, 12))
             story.append(t_gps)
 
-        if not (include_spots and vnnox_imports) and not (include_map and gps_imports):
-            story.append(Paragraph(
-                remove_diacritics(_(
-                    "Nu exista date de audit disponibile pentru aceasta campanie. "
-                    "Importati fisiere GPS si VnNox din sectiunea 'Gestiune Date Auditate'."
-                )),
                 self.styles['Normal']
             ))
+
+        # --- Photo Gallery Section ---
+        if include_photos:
+            self._embed_photo_gallery(story, data)
 
         # Disclaimer
         story.append(Spacer(1, 30))
@@ -283,5 +283,58 @@ class PopAnnexReportGenerator(ReportGenerator):
                 "Validat conform metodologiei DOOH Standard."
             )), disc
         ))
+        
+        doc.build(story)
+
+    def _embed_photo_gallery(self, story, data):
+        """Find and embed photos from campaign_photos directory"""
+        campaign_id = data.get('id')
+        if not campaign_id:
+            return
+
+        photo_dir = os.path.join('data', 'campaign_photos', campaign_id)
+        if not os.path.exists(photo_dir):
+            return
+
+        photos = [os.path.join(photo_dir, f) for f in os.listdir(photo_dir) 
+                  if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        
+        if not photos:
+            return
+
+        story.append(PageBreak())
+        story.append(Paragraph(
+            "<b>C. " + remove_diacritics(_("Galerie Foto (Dovada Executie)")) + "</b>",
+            self.styles['Heading2']
+        ))
+        story.append(Spacer(1, 10))
+        
+        # Display photos in a grid (2 per row)
+        rows = []
+        current_row = []
+        for i, photo_path in enumerate(photos):
+            try:
+                # Resize image to fit half page width
+                img = Image(photo_path, width=3.0 * inch, height=2.25 * inch)
+                current_row.append(img)
+                
+                if len(current_row) == 2:
+                    rows.append(current_row)
+                    current_row = []
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error loading photo {photo_path}: {e}")
+
+        if current_row:
+            rows.append(current_row + ['']) # Pad last row if needed
+
+        if rows:
+            t_photos = Table(rows, colWidths=[3.2 * inch, 3.2 * inch])
+            t_photos.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+            ]))
+            story.append(t_photos)
 
         doc.build(story)
