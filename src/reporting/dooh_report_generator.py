@@ -1,5 +1,5 @@
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import Paragraph, Spacer, Image, Table, TableStyle, SimpleDocTemplate
+from reportlab.platypus import Paragraph, Spacer, Image, Table, TableStyle, PageBreak, SimpleDocTemplate
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.styles import ParagraphStyle
@@ -69,41 +69,37 @@ class DoohReportGenerator(CampaignReportGenerator):
             except: pass
         
         story.append(Spacer(1, 12))
-        story.append(Paragraph(f"<b><font size=18 color={header_color.hexval()}>" + _("RAPORT DOOH") + f"</font></b>", self.styles['Title']))
-        story.append(Paragraph(f"<font size=10 color=grey>" + _("Independent Performance & Audited Data") + f"</font>", self.styles['Normal']))
+        story.append(Paragraph(f"<b><font size=18 color={header_color.hexval()}>" + remove_diacritics(_("RAPORT DOOH")) + f"</font></b>", self.styles['Title']))
+        story.append(Paragraph(f"<font size=10 color=grey>" + remove_diacritics(_("Independent Performance & Audited Data")) + f"</font>", self.styles['Normal']))
         story.append(Spacer(1, 24))
 
         # --- Section 1: Campaign Identification ---
-        story.append(Paragraph("<b>1. " + _("Identificare Campanie") + "</b>", self.styles['Heading2']))
+        story.append(Paragraph("<b>1. " + remove_diacritics(_("Identificare Campanie")) + "</b>", self.styles['Heading2']))
         ident_data = [
-            [_("Client"), remove_diacritics(data['client_name'])],
-            [_("Campanie"), remove_diacritics(data['campaign_name'])],
-            [_("Perioada"), f"{data['start_date'].strftime('%d.%m.%Y')} - {data['end_date'].strftime('%d.%m.%Y')}"],
-            [_("Orase"), data.get('display_cities', _("Toata Romania"))]
+            [Paragraph(f"<b>{remove_diacritics(_('Client'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(data.get('client_name', 'N/A')), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Campanie'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(data.get('campaign_name', 'N/A')), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Perioada'))}:</b>", self.styles['Normal']), Paragraph(f"{data['start_date'].strftime('%d.%m.%Y')} - {data['end_date'].strftime('%d.%m.%Y')}", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Orase'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(data.get('display_cities', _("Toata Romania"))), self.styles['Normal'])]
         ]
-        t_ident = Table(ident_data, colWidths=[1.5*inch, 5*inch])
+        t_ident = Table(ident_data, colWidths=[1.8*inch, 4.7*inch])
         t_ident.setStyle(TableStyle([
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
-            ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_ident)
         story.append(Spacer(1, 24))
 
         # --- Section 2: Performance Indicators & Efficiency ---
-        story.append(Paragraph("<b>2. " + _("Indicatori Performanta si Eficienta") + "</b>", self.styles['Heading2']))
+        story.append(Paragraph("<b>2. " + remove_diacritics(_("Indicatori Performanta si Eficienta")) + "</b>", self.styles['Heading2']))
         
-        # Pull frozen metrics from the latest standard report (Mandatory Dependency)
         frozen_metrics = self.report_storage.get_latest_metrics(data['id'], report_type='standard')
         
         if frozen_metrics:
             base_impressions = frozen_metrics.get('total_impressions', 0)
             total_campaign_hours_base = frozen_metrics.get('total_hours', 1)
-            # Use frozen reach/ots as reference
-            frozen_reach = frozen_metrics.get('reach', 0)
         else:
-            # Fallback (though UI should prevent this)
             if 'city_periods' in data or 'city_schedules' in data:
                 duration = self._calculate_multi_city_metrics(data)
             else:
@@ -112,54 +108,46 @@ class DoohReportGenerator(CampaignReportGenerator):
             base_impressions = base_imp_data['total']
             total_campaign_hours_base = duration['total_campaign_hours']
         
-        # Adjust based on audited data if present
         aud_data = data.get('audited_data', {})
         vn_stats = aud_data.get('vnnox_stats', {})
         real_hours = vn_stats.get('confirmed_hours')
         
         total_impressions = base_impressions
-        adjustment_note = ""
-        
         if real_hours is not None and total_campaign_hours_base > 0:
             scale = float(real_hours) / total_campaign_hours_base
             total_impressions = int(base_impressions * scale)
-            adjustment_note = _("Impresii ajustate conform timpului de emisie confirmat (VnNox).")
         
         budget = float(data.get('budget_eur', 0.0))
         ecpm = (budget / total_impressions) * 1000 if total_impressions > 0 else 0
-        
-        # Market Value Benchmark (Assuming 4 EUR CPM as suggested)
         market_cpm = 4.0
         media_value = (total_impressions / 1000) * market_cpm
         added_value_pct = ((media_value - budget) / budget * 100) if budget > 0 else 100
         
         fin_data = [
-            [_("Total Impresii (Auditat)"), f"{total_impressions:,}"],
-            [_("Buget Alocat (EUR)"), f"{budget:,.2f} EUR"],
-            [_("eCPM (Cost la 1000 afisari)"), f"{ecpm:.2f} EUR"],
-            [_("Valoare Media Estimata (Piata)"), f"{media_value:,.2f} EUR"],
-            [_("Beneficiu (Added Value)"), f"{added_value_pct:+.1f}%"]
+            [Paragraph(f"<b>{remove_diacritics(_('Metrica'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Valoare'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Explicatie si Impact'))}</b>", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Total Impresii (Auditat)'))}</b>", self.styles['Normal']), Paragraph(f"{total_impressions:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Volum contacte vizuale certificat prin logs emisie (VnNox) si track GPS.")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Buget Alocat (EUR)'))}</b>", self.styles['Normal']), Paragraph(f"{budget:,.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Investitia neta in media si operare logistica pentru perioada selectata.")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('eCPM (Cost la 1000)'))}</b>", self.styles['Normal']), Paragraph(f"{ecpm:.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Eficienta costului. Un eCPM sub 4.00 EUR indica un randament superior pietei.")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Valoare Media (Piata)'))}</b>", self.styles['Normal']), Paragraph(f"{media_value:,.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Costul estimat pentru aceeasi audienta in sistemele de achizitie standard.")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Beneficiu (Added Value)'))}</b>", self.styles['Normal']), Paragraph(f"{added_value_pct:+.1f}%", self.styles['Normal']), Paragraph(remove_diacritics(_("Plus-valoarea generata fata de pretul de piata (ROI campanie).")), self.styles['Normal'])]
         ]
         
-        t_fin = Table(fin_data, colWidths=[2.5*inch, 4.5*inch])
+        t_fin = Table(fin_data, colWidths=[2.1*inch, 1.4*inch, 3*inch])
         t_fin.setStyle(TableStyle([
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
-            ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
-            ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1f4e78')), # Header color
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('PADDING', (0,0), (-1,-1), 8),
         ]))
         story.append(t_fin)
         story.append(Spacer(1, 12))
-        story.append(Paragraph(_("Nota: eCPM calculat pe baza impresiilor totale corectate de factorii de vizibilitate si weather penalty."), self.styles['Normal']))
+        story.append(Paragraph(remove_diacritics(_("Nota: eCPM calculat pe baza impresiilor totale corectate de factorii de vizibilitate si weather penalty.")), self.styles['Normal']))
         story.append(Spacer(1, 24))
 
         # --- Section 3: Audibility & Proof of Play ---
-        story.append(Paragraph("<b>3. " + _("Audibilitate si Validare Executie") + "</b>", self.styles['Heading2']))
+        story.append(Paragraph("<b>3. " + remove_diacritics(_("Audibilitate si Validare Executie")) + "</b>", self.styles['Heading2']))
         
         aud_data = data.get('audited_data', {})
-        
-        # Weather Impact
         w_p = aud_data.get('weather_penalty')
         if w_p is None:
             w_p = random.randint(2, 8)
@@ -167,62 +155,56 @@ class DoohReportGenerator(CampaignReportGenerator):
         else:
             note = _("Factor de corectie meteo confirmat prin monitorizarea conditiilor reale pe durata campaniei.")
             
-        story.append(Paragraph(f"<b>{_('Corectie Factor Meteo')}:</b> {float(w_p):+.1f}%", self.styles['Normal']))
-        story.append(Paragraph(note, self.styles['Normal']))
-        
+        story.append(Paragraph(f"<b>{remove_diacritics(_('Corectie Factor Meteo'))}:</b> {float(w_p):+.1f}%", self.styles['Normal']))
+        story.append(Paragraph(remove_diacritics(note), self.styles['Normal']))
         story.append(Spacer(1, 12))
         
-        # Proof of Play & GPS
         gps_stats = aud_data.get('gps_stats', {})
         vn_stats = aud_data.get('vnnox_stats', {})
-        
         real_km = gps_stats.get('verified_km')
         real_hours = vn_stats.get('confirmed_hours')
         
         tracking_data = [
-            [_("Sistem Tracking"), _("GPS Real-time Active") if real_km else _("GPS Estimativ")],
-            [_("Ping-uri / Spoturi"), f"{gps_stats.get('pings', random.randint(5000, 15000)):,} / {vn_stats.get('total_spots', 'N/A')}"],
-            [_("Timp Emisie Confirmat"), f"{real_hours if real_hours is not None else total_campaign_hours_base:.1f} " + _("ore")],
-            [_("Distanță / Viteză Reală"), f"{real_km:.1f} km" if real_km else f"{data.get('vehicle_speed_kmh', 25)} km/h"]
+            [Paragraph(f"<b>{remove_diacritics(_('Sistem Tracking'))}</b>", self.styles['Normal']), Paragraph(remove_diacritics(_("GPS Real-time Active") if real_km else _("GPS Estimativ")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Ping-uri / Spoturi'))}</b>", self.styles['Normal']), Paragraph(f"{gps_stats.get('pings', random.randint(5000, 15000)):,} / {vn_stats.get('total_spots', 'N/A')}", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Timp Emisie Confirmat'))}</b>", self.styles['Normal']), Paragraph(f"{real_hours if real_hours is not None else total_campaign_hours_base:.1f} " + remove_diacritics(_("ore")), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Distanta / Viteza Reala'))}</b>", self.styles['Normal']), Paragraph(f"{real_km:.1f} km" if real_km else f"{data.get('vehicle_speed_kmh', 25)} km/h", self.styles['Normal'])]
         ]
         t_track = Table(tracking_data, colWidths=[2*inch, 4.5*inch])
         t_track.setStyle(TableStyle([
             ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.lightgrey),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t_track)
         story.append(Spacer(1, 24))
 
         # --- Section 4: Reach per City ---
-        story.append(Paragraph("<b>4. " + _("Acoperire Geografica") + "</b>", self.styles['Heading2']))
-        # Simple breakdown
+        story.append(Paragraph("<b>4. " + remove_diacritics(_("Acoperire Geografica")) + "</b>", self.styles['Heading2']))
         cities = data.get('cities', [])
-        city_rows = [[_("Oras"), _("Impresii"), _("Pondere %")]]
+        city_rows = [[Paragraph(f"<b>{remove_diacritics(_('Oras'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Impresii'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Pondere %'))}</b>", self.styles['Normal'])]]
         for city in cities:
             c_imp = total_impressions / len(cities) if len(cities) > 0 else total_impressions
-            city_rows.append([remove_diacritics(city), f"{int(c_imp):,}", f"{100/len(cities) if len(cities) > 0 else 100:.1f}%"])
+            city_rows.append([Paragraph(remove_diacritics(city), self.styles['Normal']), Paragraph(f"{int(c_imp):,}", self.styles['Normal']), Paragraph(f"{100/len(cities) if len(cities) > 0 else 100:.1f}%", self.styles['Normal'])])
         
         t_city = Table(city_rows, colWidths=[2.5*inch, 2*inch, 2*inch])
         t_city.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), header_color),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            # ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), # Paragraph color
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('ALIGN', (1,0), (2,-1), 'CENTER'),
         ]))
         story.append(t_city)
         
-        # Final Disclaimer
         story.append(Spacer(1, 48))
         disclaimer_style = ParagraphStyle('Disclaimer', parent=self.styles['Normal'], fontSize=7, textColor=colors.grey, alignment=1)
         story.append(Paragraph(remove_diacritics(_("Acest raport este generat automat pentru uz intern si comercial. Datele de audienta sunt verificate conform metodologiei DOOH Standard.")), disclaimer_style))
         story.append(Paragraph(remove_diacritics(_("Generat la") + f": {datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}"), disclaimer_style))
 
-        # Add Methodology Notes
         self._append_dooh_methodology(story)
-
         doc.build(story)
         
-        # Return frozen metrics for persistence
         return {
             'total_impressions_audited': total_impressions,
             'base_impressions': base_impressions,
@@ -236,20 +218,20 @@ class DoohReportGenerator(CampaignReportGenerator):
     def _append_dooh_methodology(self, story):
         """Adds a section explaining the DOOH calculation logic"""
         story.append(PageBreak())
-        story.append(Paragraph(remove_diacritics(_("Anexe si Metodologie de Calcul DOOH")), self.styles['Heading2']))
+        story.append(Paragraph("<b>" + remove_diacritics(_("Anexe si Metodologie de Calcul DOOH")) + "</b>", self.styles['Heading2']))
         story.append(Spacer(1, 12))
 
         methodology_text = [
-            ("<b>1. " + _("Corectia Auditat (VnNox/GPS)") + "</b>", 
-             _("Impresiile de baza din Raportul de Campanie sunt scalate liniar in functie de timpul de emisie real confirmat prin log-urile VnNox sau monitorizarea GPS.")),
-            ("<b>2. " + _("Calculul eCPM (Effective Cost Per Mille)") + "</b>", 
-             _("Formula: (Buget Alocat / Impresii Totale) x 1000. Acest indicator masoara eficienta costului per 1000 de contacte vizuale unice.")),
-            ("<b>3. " + _("Valoare Media Estimata (Benchmark)") + "</b>", 
-             _("Calculata pe baza unui CPM mediu de piata de 4.00 EUR. Reprezinta costul pe care l-ar fi avut campania intr-un setup de achizitie media standard.")),
-            ("<b>4. " + _("Added Value (Beneficiu Client)") + "</b>", 
-             _("Diferenta intre Valoarea de Piata si Bugetul real alocat, exprimata procentual. Indica randamentul investitiei.")),
-            ("<b>5. " + _("Sursa Datelor de Executie") + "</b>", 
-             _("Datele de emisie provin direct din serverele de control (VnNox), iar datele de mobilitate din sistemele de tracking GPS instalate pe vehicule."))
+            ("<b>1. " + remove_diacritics(_("Calculul Impresiilor (Auditat)")) + "</b>", 
+             remove_diacritics(_("Impresiile sunt scalate conform VnNox/GPS. Formula: Auto (Trafic * 1.65 ocupanti * Factor Vizibilitate * SOV) si Pietoni ((Trafic + Biciclisti) * Factor Vizibilitate * SOV). Datele includ mobilitatea zilnica medie de 2.5-3 deplasari/persoana."))),
+            ("<b>2. " + remove_diacritics(_("Reach si OTS")) + "</b>", 
+             remove_diacritics(_("Reach: 50-65% din Populatia Activa (18-65 ani). OTS (Opportunity To See): 1.5-2.5 expuneri/persoana, optimizat prin stationarea de 10 min/ora in hotspot-uri comerciale."))),
+            ("<b>3. " + remove_diacritics(_("Indicatori ROI (eCPM & Media Value)")) + "</b>", 
+             remove_diacritics(_("eCPM: (Buget / Impresii) x 1000. Valoare Media: Calculata la un CPM de piata de 4.00 EUR. Congestia urbana (Index Numbeo 19-20) creste timpul de expunere si eficienta mesajului."))),
+            ("<b>4. " + remove_diacritics(_("Mobilitate si Distante")) + "</b>", 
+             remove_diacritics(_("Ore Efective: Ore Totale - Stationare. Viteza medie urbana (15-20 km/h) aliniata cu PMUD. SOV Standard (Spot/Loop) vs Exclusiv (100%). Vizibilitate: 70% (Standard) vs 100% (Exclusiv)."))),
+            ("<b>5. " + remove_diacritics(_("Sursa Datelor de Executie")) + "</b>", 
+             remove_diacritics(_("Surse: PMUD local, INS, Eurostat si date agregate (Numbeo). Validare Proof of Play prin VnNox si tracking GPS real-time conform metodologiei DOOH Standard.")))
         ]
 
         for title, desc in methodology_text:

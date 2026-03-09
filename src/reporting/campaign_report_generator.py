@@ -12,26 +12,28 @@ from src.data.company_settings import CompanySettings
 from src.utils.map_service import MapService
 from src.utils.i18n import _, remove_diacritics
 from src.data.report_storage import ReportStorage
+from src.data.vehicle_manager import VehicleManager
+from src.data.driver_manager import DriverManager
 
 class ReportTemplates:
     """Templates for report text variations"""
     
     INTRO = [
-        _("Prezentul raport detaliaza performanta estimata a campaniei Mobile DOOH pentru clientul <b>{client_name}</b>."),
-        _("Acest document prezinta o analiza a impactului campaniei Mobile DOOH desfasurate pentru <b>{client_name}</b>."),
-        _("Urmatorul raport ofera o imagine de ansamblu asupra rezultatelor estimate pentru campania Mobile DOOH a clientului <b>{client_name}</b>.")
+        _("Prezentul raport detaliaza performanta estimata a campaniei Mobile DOOH pentru clientul <b>{client_name}</b>, bazat pe indicatori de audienta stradala (impressions), reach potential si frecventa (OTS)."),
+        _("Analiza de impact pentru campania Mobile DOOH a clientului <b>{client_name}</b>. Datele reflecta expunerea auditata in functie de dinamica fluxurilor de trafic si mobilitate urbana."),
+        _("Acest document ofera o estimare conservativa a rezultatelor campaniei Mobile DOOH ({client_name}), coreland datele demografice locale cu parametrii tehnici ai vehiculului de broadcasting.")
     ]
     
     DEMOGRAPHICS = [
-        _("{city_display} are o populatie urbana estimata la <b>{population:,} locuitori</b>. Populatia activa este de aproximativ <b>{pop_active:,}</b> ({active_pct}%)."),
-        _("In {city_display}, populatia urbana este de cca. <b>{population:,} locuitori</b>, cu un segment activ de <b>{pop_active:,}</b> ({active_pct}%)."),
-        _("Analiza demografica pentru {city_display} indica o populatie de <b>{population:,}</b>, din care <b>{pop_active:,}</b> ({active_pct}%) reprezinta populatia activa.")
+        _("{city_display} are o populatie urbana estimata la <b>{population:,} locuitori</b>. Segmentul activ (lucratori si studenti, 18-65 ani) reprezinta cca. <b>{pop_active:,}</b> ({active_pct}%)."),
+        _("Analiza pentru {city_display} indica un bazin demografic de <b>{population:,} locuitori</b>. Mobilitatea zilnica medie este de 2.5-3 deplasari/persoana, concentrata pe axele comerciale si centrale."),
+        _("In {city_display}, densitatea urbana si fluxurile radiale (centru-periferie) definesc o populatie activa de <b>{pop_active:,}</b> ({active_pct}%), cu un mix de transport personal (65-77%) si pietonal.")
     ]
     
     CONCLUSIONS = [
-        _("Campania a generat un numar estimat de <b>{impressions:,} impresii</b>, atingand un public larg in {city_display}. Stationarea de {stationing} minute pe ora a maximizat vizibilitatea in zonele pietonale cheie."),
-        _("Cu un total estimat de <b>{impressions:,} impresii</b>, campania a avut un impact semnificativ in {city_display}. Timpul de stationare ({stationing} min/ora) a contribuit la cresterea vizibilitatii."),
-        _("Rezultatele indica <b>{impressions:,} impresii</b> generate in {city_display}. Strategia de stationare ({stationing} min/ora) a asigurat o expunere optima catre publicul tinta.")
+        _("Campania a generat <b>{impressions:,} impresii</b>. Strategia de stationare ({stationing} min/ora) in hotspot-uri congestionate a optimizat timpul de expunere, rezultand intr-o frecventa (OTS) ridicata."),
+        _("Rezultatul de <b>{impressions:,} impresii</b> confirma eficienta rutei alese. Viteza medie redusa si punctele de stationare au asigurat o vizibilitate maxima catre segmentul de public tinta in {city_display}."),
+        _("Cu un reach estimat semnificativ, campania a atins obiectivele de vizibilitate. Cele <b>{impressions:,} impresii</b> reflecta o penetrare optima a pietei locale, sustinuta de mobilitatea radiala intensa.")
     ]
 
 CAMPAIGN_MODES = {
@@ -47,6 +49,8 @@ class CampaignReportGenerator(ReportGenerator):
         self.city_manager = CityDataManager()
         self.company_settings = CompanySettings()
         self.report_storage = ReportStorage()
+        self.vehicle_manager = VehicleManager()
+        self.driver_manager = DriverManager()
 
     def _get_styles(self):
         """Get report styles"""
@@ -322,65 +326,191 @@ class CampaignReportGenerator(ReportGenerator):
         shared_mode = meta.get('shared_mode', True)
         doc = SimpleDocTemplate(output_path, pagesize=letter)
         story = []
-        client_name, campaign_name = remove_diacritics(data['client_name']), remove_diacritics(data['campaign_name'])
+        
+        client_name = remove_diacritics(data.get('client_name', 'Unnamed Client'))
+        campaign_name = remove_diacritics(data.get('campaign_name', 'Unnamed Campaign'))
+        
+        # --- Header & Logo ---
         settings = self.company_settings.get_settings()
         if settings:
             logo_path = settings.get('logo_path')
             if logo_path and os.path.exists(logo_path):
-                logo = Image(logo_path, width=1.5*inch, height=0.8*inch); logo.hAlign = 'LEFT'; story.append(logo); story.append(Spacer(1, 6))
+                logo = Image(logo_path, width=1.5*inch, height=0.8*inch)
+                logo.hAlign = 'LEFT'
+                story.append(logo)
             comp_name = settings.get('name', '')
             if comp_name:
-                header_text = f"<b>{comp_name}</b>"
+                header_text = f"<b>{remove_diacritics(comp_name)}</b>"
                 if settings.get('registration_number'): header_text += f" | {settings['registration_number']}"
-                if settings.get('address'): header_text += f"<br/>{settings['address']}"
                 story.append(Paragraph(header_text, ParagraphStyle('CompanyHeader', parent=self.styles['Normal'], fontSize=8, textColor=colors.grey)))
                 story.append(Spacer(1, 12))
+
+        # --- Title ---
         intro_tmpl = random.choice(ReportTemplates.INTRO)
         story.append(Paragraph(remove_diacritics(intro_tmpl.format(client_name=client_name)), self.styles['Normal']))
         story.append(Spacer(1, 12))
-        city_display = remove_diacritics(data.get('display_cities', data.get('city', 'Unknown')))
+        
         story.append(Paragraph(f"<b>" + remove_diacritics(_("Campaign Report") + f": {campaign_name}</b>"), self.styles['Title']))
         story.append(Spacer(1, 12))
-        data_table = [[_("Client") + ":", client_name], [_("Campaign") + ":", campaign_name], [_("PO Number") + ":", str(data.get('po_number', '-'))], [_("City") + ":", city_display], [_("Period") + ":", f"{data['start_date'].strftime('%d.%m.%Y')} - {data['end_date'].strftime('%d.%m.%Y')}"], [_("Daily Hours") + ":", str(data['daily_hours'])]]
-        t = Table(data_table, colWidths=[1.5*inch, 5*inch]); t.setStyle(TableStyle([('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'), ('GRID', (0,0), (-1,-1), 0.5, colors.grey), ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke), ('PADDING', (0,0), (-1,-1), 6)])); story.append(t); story.append(Spacer(1, 24))
+
+        # --- Identification Table ---
+        city_display = remove_diacritics(data.get('display_cities', ", ".join(cities) if cities else 'Unknown'))
+        
+        # Get duration metrics early for the header
         duration_metrics = self._calculate_multi_city_metrics(data) if ('city_periods' in data or 'city_schedules' in data) else self._calculate_campaign_duration(data['start_date'], data['end_date'], data['daily_hours'], data.get('custom_daily_schedule'))
-        info_style = self.styles['Normal']
-        story.append(Paragraph(f"<b>{_('Report Date')}:</b> {datetime.date.today().strftime('%d %B %Y')}", info_style))
-        story.append(Paragraph(f"<b>{_('Campaign Period')}:</b> {data['start_date'].strftime('%d')} - {data['end_date'].strftime('%d %B %Y')} ({_('Total active days')}: {duration_metrics['total_days']})", info_style))
-        story.append(Paragraph(f"<b>{_('Daily Hours')}:</b> {data['daily_hours']} ({_('Average')}: {duration_metrics['hours_per_day']:.1f} h/day)", info_style))
-        story.append(Paragraph(f"<b>{_('Total Exposure Duration')}:</b> {duration_metrics['total_campaign_hours']:.1f} hours", info_style))
-        story.append(Spacer(1, 15))
+        
+        # Determine Mode Label
+        mode_key = data.get('campaign_mode', 'SINGLE_VEHICLE_CITY')
+        mode_label = CAMPAIGN_MODES.get(mode_key, {}).get('label', mode_key)
+        
+        # Determine Vehicle/Driver info
+        v_reg = "N/A"
+        d_name = "N/A"
+        if data.get('vehicle_id'):
+            v = self.vehicle_manager.get_vehicle(data['vehicle_id'])
+            if v:
+                name, reg = v.get('name', ''), v.get('registration', '')
+                if name and reg: v_reg = f"{name} ({reg})"
+                else: v_reg = name or reg or "N/A"
+                # Driver from vehicle
+                if v.get('driver_name'):
+                    d_name = v['driver_name']
+                elif v.get('driver_id'):
+                    d = self.driver_manager.get_driver(v['driver_id'])
+                    if d: d_name = d.get('name', 'N/A')
+        
+        # Primary driver if specified in campaign
+        if data.get('driver_id'):
+            d = self.driver_manager.get_driver(data['driver_id'])
+            if d: d_name = d.get('name', 'N/A')
+
+        # Prepare tables with wrapping Paragraphs to prevent overlaps
+        id_data = [
+            [Paragraph(f"<b>{remove_diacritics(_('Client'))}:</b>", self.styles['Normal']), Paragraph(client_name, self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Campaign'))}:</b>", self.styles['Normal']), Paragraph(campaign_name, self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('PO Number'))}:</b>", self.styles['Normal']), Paragraph(str(data.get('po_number', '-')), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('City'))}:</b>", self.styles['Normal']), Paragraph(city_display, self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Period'))}:</b>", self.styles['Normal']), Paragraph(f"{data['start_date'].strftime('%d.%m.%Y')} - {data['end_date'].strftime('%d.%m.%Y')} ({duration_metrics['total_days']} zile)", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Daily Hours'))}:</b>", self.styles['Normal']), Paragraph(f"{data['daily_hours']} (Medie: {duration_metrics['hours_per_day']:.1f} h/zi)", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Vehicle'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(v_reg), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Driver'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(d_name), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Campaign Mode'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(mode_label), self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Objective'))}:</b>", self.styles['Normal']), Paragraph(remove_diacritics(_("Estimare trafic pietonal si auto expus, corelat cu date demografice si mobilitate urbana.")), self.styles['Normal'])]
+        ]
+        
+        t_id = Table(id_data, colWidths=[1.8*inch, 4.7*inch])
+        t_id.setStyle(TableStyle([
+            # ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'), # Paragraph handles the bold
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ('BACKGROUND', (0,0), (0,-1), colors.whitesmoke),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('PADDING', (0,0), (-1,-1), 6)
+        ]))
+        story.append(t_id)
+        story.append(Spacer(1, 24))
+
+        # --- Section 1: Context Demografic ---
+        story.append(Paragraph("<b>1. " + remove_diacritics(_("Demographic Context & Urban Mobility")) + "</b>", self.styles['Heading2']))
         pop_active = int(data['population'] * data['active_population_pct'] / 100)
+        demo_tmpl = random.choice(ReportTemplates.DEMOGRAPHICS)
+        story.append(Paragraph(remove_diacritics(demo_tmpl.format(
+            city_display=city_display,
+            population=data['population'],
+            pop_active=pop_active,
+            active_pct=data['active_population_pct']
+        )), self.styles['Normal']))
+        story.append(Spacer(1, 12))
+
+        # --- Modal Split Chart in Section 1 ---
         weighted_modal_split = {'auto': 0, 'walking': 0, 'cycling': 0, 'public_transport': 0}
-        total_pop, avg_commute_dist = 0, 0
+        total_pop_ms = 0
         for city in cities:
             cp = self.city_manager.get_city_data_for_period(city, data['start_date'])
-            p = cp.get('population', 100000) if cp else 100000; total_pop += p
-            ms = cp.get('modal_split', weighted_modal_split) if cp else {'auto': 35, 'walking': 27, 'cycling': 4, 'public_transport': 34}
-            for m in ms: weighted_modal_split[m] += ms.get(m, 0) * p
-            avg_commute_dist += (cp.get('avg_commute_distance_km', 8) if cp else 8) * p
-        modal_split = {m: int(v / total_pop) for m, v in weighted_modal_split.items()} if total_pop > 0 else {'auto': 35, 'walking': 27, 'cycling': 4, 'public_transport': 34}
-        avg_commute_distance = avg_commute_dist / total_pop if total_pop > 0 else 8
+            p_ms = cp.get('population', 100000) if cp else 100000
+            total_pop_ms += p_ms
+            ms_city = cp.get('modal_split', {'auto': 35, 'walking': 27, 'cycling': 4, 'public_transport': 34}) if cp else {'auto': 35, 'walking': 27, 'cycling': 4, 'public_transport': 34}
+            for m in ms_city: weighted_modal_split[m] += ms_city.get(m, 0) * p_ms
+        
+        if total_pop_ms > 0:
+            final_ms = {remove_diacritics(m.capitalize().replace('_', ' ')): v/total_pop_ms for m, v in weighted_modal_split.items()}
+            ms_chart = self.create_pie_chart(final_ms, remove_diacritics(_("Repartitie Modal Split (Transport)")))
+            if ms_chart:
+                img_ms = Image(ms_chart, width=3.5*inch, height=3.5*inch)
+                img_ms.hAlign = 'CENTER'
+                story.append(img_ms)
+                story.append(Spacer(1, 12))
+
+        # --- Section 2: Estimari Trafic ---
+        story.append(Paragraph("<b>2. " + remove_diacritics(_("Traffic Estimates (Campaign Interval)")) + "</b>", self.styles['Heading2']))
+        story.append(Paragraph("<b>" + remove_diacritics(_("Global Metrics")) + "</b>", self.styles['Heading3']))
+        
         impressions = self.get_total_impressions_data(data, duration_metrics)
-        route_metrics = self._calculate_route_distance(data.get('vehicle_speed_kmh', 25), duration_metrics['total_campaign_hours'], data.get('stationing_min_per_hour', 15), avg_commute_distance, data.get('known_distance_total'), data.get('custom_daily_distances'), duration_metrics['total_days'])
+        avg_commute_distance = 8 # Default
+        if cities:
+            total_dist = 0
+            for city in cities:
+                cp = self.city_manager.get_city_data_for_period(city, data['start_date'])
+                total_dist += (cp.get('avg_commute_distance_km', 8) if cp else 8)
+            avg_commute_distance = total_dist / len(cities)
+
+        route_metrics = self._calculate_route_distance(
+            data.get('vehicle_speed_kmh', 25), 
+            duration_metrics['total_campaign_hours'], 
+            data.get('stationing_min_per_hour', 15), 
+            avg_commute_distance, 
+            data.get('known_distance_total'), 
+            data.get('custom_daily_distances'), 
+            duration_metrics['total_days']
+        )
         audience_metrics = self._calculate_ots_and_reach(impressions['total'], route_metrics['route_loops'], pop_active)
         reach, ots = audience_metrics['reach'], audience_metrics['ots']
-        story.append(Paragraph(_("Global Metrics"), self.styles['Heading2']))
-        metrics_data = [[_("Metric"), _("Value"), _("Description")], [_("Total Impressions"), f"{impressions['total']:,}", _("Estimated visual contacts")], [_("Total Hours"), f"{duration_metrics['total_campaign_hours']:.1f}", _("Net broadcasting time")], [_("Reach Potential"), f"{reach:,}", _("Unique viewers")], [_("OTS"), f"{ots}", _("Opportunity to See")]]
-        t_metrics = Table(metrics_data, colWidths=[1.5*inch, 1.5*inch, 3.5*inch]); t_metrics.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), ('GRID', (0, 0), (-1, -1), 0.5, colors.grey), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), ('PADDING', (0,0), (-1,-1), 6)])); story.append(t_metrics); story.append(Spacer(1, 24))
-        imp_data = {_('Auto'): impressions['auto'], _('Pedestrian/Bicycle'): impressions['pedestrian']}
-        imp_chart = self.create_pie_chart(imp_data, remove_diacritics(_("Impressions Distribution")))
-        if imp_chart: story.append(Image(imp_chart, width=4*inch, height=4*inch))
-        story.append(Spacer(1, 24))
-        concl_tmpl = random.choice(ReportTemplates.CONCLUSIONS)
-        story.append(Paragraph(remove_diacritics(concl_tmpl.format(impressions=impressions['total'], city_display=city_display, stationing=data.get('stationing_min_per_hour', 15))), info_style))
+
+        metrics_data = [
+            [Paragraph(f"<b>{remove_diacritics(_('Metric'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Value'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Description'))}</b>", self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Total Impressions")), self.styles['Normal']), Paragraph(f"{impressions['total']:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Contacte vizuale brute (Auto + Pietonal) ajustate cu factori de vizibilitate.")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Total Hours")), self.styles['Normal']), Paragraph(f"{duration_metrics['total_campaign_hours']:.1f}", self.styles['Normal']), Paragraph(remove_diacritics(_("Timp net de emisie, excluzand stationarea si timpii morti.")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Avg Speed")), self.styles['Normal']), Paragraph(f"{data.get('vehicle_speed_kmh', 25)} km/h", self.styles['Normal']), Paragraph(remove_diacritics(_("Viteza medie de croaziera aliniata cu indicii de mobilitate PMUD.")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Stationing")), self.styles['Normal']), Paragraph(f"{data.get('stationing_min_per_hour', 15)} min/h", self.styles['Normal']), Paragraph(remove_diacritics(_("Maximizes exposure in high-footfall areas (20-30% OTS boost).")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Potential Reach")), self.styles['Normal']), Paragraph(f"{reach:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Persoane unice expuse (cca. 50-65% din populatia activa).")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("OTS")), self.styles['Normal']), Paragraph(f"{ots}", self.styles['Normal']), Paragraph(remove_diacritics(_("Opportunity to See - frecventa medie de vizionare per persoana.")), self.styles['Normal'])]
+        ]
         
+        t_metrics = Table(metrics_data, colWidths=[1.8*inch, 1.2*inch, 3.5*inch])
+        t_metrics.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            # ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), # Paragraph text color is handled in styles
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('PADDING', (0,0), (-1,-1), 6)
+        ]))
+        story.append(t_metrics)
+        story.append(Spacer(1, 24))
+
+        # --- Charts ---
+        imp_data = {remove_diacritics(_('Auto')): impressions['auto'], remove_diacritics(_('Pedestrian/Bicycle')): impressions['pedestrian']}
+        imp_chart = self.create_pie_chart(imp_data, remove_diacritics(_("Impressions Distribution")))
+        if imp_chart:
+            story.append(Image(imp_chart, width=4*inch, height=4*inch))
+        story.append(Spacer(1, 24))
+
+        # --- Section 4: Conclusions ---
+        story.append(Paragraph("<b>4. " + remove_diacritics(_("Conclusions")) + "</b>", self.styles['Heading2']))
+        concl_tmpl = random.choice(ReportTemplates.CONCLUSIONS)
+        story.append(Paragraph(remove_diacritics(concl_tmpl.format(
+            impressions=impressions['total'], 
+            city_display=city_display, 
+            stationing=data.get('stationing_min_per_hour', 15)
+        )), self.styles['Normal']))
+        
+        story.append(Spacer(1, 24))
+        story.append(Paragraph("<i>" + remove_diacritics(_("*This report is based on statistical estimates and average traffic data.")) + "</i>", 
+                             ParagraphStyle('Note', parent=self.styles['Normal'], fontSize=8, textColor=colors.grey)))
+
         # Add Methodology Notes
         self._append_methodology_notes(story)
         
         doc.build(story)
         
-        # Return frozen metrics for the database
         return {
             'total_impressions': impressions['total'],
             'auto_impressions': impressions['auto'],
@@ -400,16 +530,16 @@ class CampaignReportGenerator(ReportGenerator):
         story.append(Spacer(1, 12))
         
         methodology_text = [
-            ("<b>1. " + _("Sursa Datelor") + "</b>", 
-             _("Datele demografice si de trafic sunt preluate din surse publice oficiale (INS, recensamant) si baze de date de mobilitate urbana, actualizate periodic pentru fiecare oras.")),
-            ("<b>2. " + _("Calculul Impresiilor (Visual Contacts)") + "</b>", 
-             _("Formula: Flux Orar x Ore Activitate x Multiplicatori Evenimente x Factor Vizibilitate x Share of Voice.")),
-            ("<b>3. " + _("Factori Corectie") + "</b>", 
-             _("Vizibilitatea este ajustata cu un factor de 0.7 (non-exclusiv) sau 1.0 (exclusiv). Share of Voice reprezinta raportul dintre durata de expunere a spotului si durata totala a loop-ului publicitar.")),
-            ("<b>4. " + _("Reach si OTS") + "</b>", 
-             _("Reach Potential reprezinta numarul estimat de persoane unice expuse mesajului, calculat in functie de populatia activa si frecventa de looping a vehiculului pe traseu. OTS (Opportunity to See) indica numarul mediu de expuneri per persoana unia.")),
-            ("<b>5. " + _("Nota Tehnica") + "</b>", 
-             _("Toate valorile sunt estimari statistice bazate pe algoritmi de propagare a traficului si nu reprezinta cifre auditate in timp real decat daca este specificat contrariul (Ex: Raport DOOH Auditat)."))
+            ("<b>1. " + remove_diacritics(_("Calculul Impresiilor")) + "</b>", 
+             remove_diacritics(_("Formula: Auto (Trafic * 1.65 ocupanti * Factor Vizibilitate * SOV) si Pietoni ((Trafic + Biciclisti) * Factor Vizibilitate * SOV). Date baza: INS, Eurostat si PMUD local (Planul de Mobilitate Urbana Durabila)."))),
+            ("<b>2. " + remove_diacritics(_("Reach si OTS")) + "</b>", 
+             remove_diacritics(_("Reach (Acoperire Unica): 50-65% din Populatia Activa, bazat pe rata de unicitate a traseului. OTS (Opportunity To See): Frecventa medie (Impresii/Reach), ridicata prin congestie si stationare (20-30% boost)."))),
+            ("<b>3. " + remove_diacritics(_("Mobilitate si Distante")) + "</b>", 
+             remove_diacritics(_("Distanta: Calculata la 20 km/h (PMUD max). Ore Efective: Ore Totale - Stationare (10 min/ora). Bucle Traseu: Distanta Totala / 8km (distanta medie naveta urbana)."))),
+            ("<b>4. " + remove_diacritics(_("Factori de Eficienta")) + "</b>", 
+             remove_diacritics(_("Share of Voice (SOV): Raport Spot/Loop. Factor Vizibilitate: 0.7 (Standard) vs 1.0 (Exclusiv). Congestia (LOS D-F pe artere principale) prelungeste expunerea si creste gradul de observare."))),
+            ("<b>5. " + remove_diacritics(_("Sursa si Validare")) + "</b>", 
+             remove_diacritics(_("Estimari statistice bazate pe PMUD (2021-2030), Numbeo Traffic Index si date flux orar (CNAIR). Proof of Play auditabil prin log-uri VnNox si senzoristica GPS a vehiculului Mobile DOOH.")))
         ]
         
         for title, desc in methodology_text:

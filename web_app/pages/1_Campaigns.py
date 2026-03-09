@@ -4,6 +4,7 @@ import datetime
 import pandas as pd
 import os
 import plotly.express as px
+import uuid
 
 # Initialize
 root_dir = utils.init_path()
@@ -11,7 +12,7 @@ utils.set_page_config("Campaign Management", "📋")
 utils.inject_custom_css()
 
 # Imports
-from src.utils.i18n import _
+from src.utils.i18n import _, remove_diacritics
 
 
 from src.data.campaign_storage import CampaignStorage
@@ -359,47 +360,77 @@ def list_campaigns():
             if selected_audit_id:
                 audit_camp = storage.get_campaign(selected_audit_id)
                 aud_data = audit_camp.get('audited_data', {})
+                # Manage fallback/initialization
+                gps_imports = aud_data.get('gps_imports', [])
+                vnnox_imports = aud_data.get('vnnox_imports', [])
                 
+                # Calculate totals from history
+                current_km = sum(item.get('distance', 0.0) for item in gps_imports)
+                # Fallback for old single-stat campaigns if history is empty
+                if current_km == 0.0 and 'gps_stats' in aud_data:
+                    current_km = aud_data['gps_stats'].get('verified_km', 0.0)
+                    
+                current_hours = sum(item.get('hours', 0.0) for item in vnnox_imports)
+                if current_hours == 0.0 and 'vnnox_stats' in aud_data:
+                    current_hours = aud_data['vnnox_stats'].get('confirmed_hours', 0.0)
+
                 col_a1, col_a2 = st.columns(2)
                 
                 # --- GPS Section ---
                 with col_a1:
                     st.write("### 📍 GPS Tracking")
-                    gps_file = st.file_uploader(_("Încarcă LOG GPS (CSV)"), type=["csv"], key=f"gps_up_{selected_audit_id}")
+                    gps_file = st.file_uploader(remove_diacritics(_("Încarcă LOG GPS (CSV/XLS)")), type=["csv", "xls", "xlsx"], key=f"gps_up_{selected_audit_id}")
                     
-                    current_km = aud_data.get('gps_stats', {}).get('verified_km', 0.0)
                     st.metric(_("Distanță Verificată (km)"), f"{current_km:.2f} km")
                     
                     if gps_file:
-                        if st.button(_("Procesează GPS"), key=f"proc_gps_{selected_audit_id}"):
+                        if st.button(remove_diacritics(_("Procesează GPS")), key=f"proc_gps_{selected_audit_id}"):
                             try:
-                                import pandas as pd
-                                df_gps = pd.read_csv(gps_file)
-                                # Simple heuristic: if we have 'distance' column, sum it. 
-                                # Otherwise assume 1 ping = 0.5km for demo or count rows.
-                                if 'distance' in df_gps.columns:
-                                    total_dist = df_gps['distance'].sum()
-                                else:
-                                    total_dist = len(df_gps) * 0.1 # Placeholder: 100m per ping
+                                from src.utils.gps_parser import parse_gps_log
                                 
-                                aud_data['gps_stats'] = {
-                                    'verified_km': float(total_dist),
-                                    'pings': len(df_gps),
-                                    'last_import': datetime.datetime.now().isoformat()
-                                }
-                                audit_camp['audited_data'] = aud_data
-                                storage.save_campaign(audit_camp, selected_audit_id)
-                                st.success(_("Date GPS importate cu succes!"))
-                                st.rerun()
+                                file_bytes = gps_file.getvalue()
+                                res = parse_gps_log(file_bytes, filename=gps_file.name)
+                                
+                                if res['format'] == 'unknown' or res['pings'] == 0:
+                                    st.warning(remove_diacritics(_("Formatul fisierului GPS nu este recunoscut sau fisierul este gol.")))
+                                else:
+                                    new_import = {
+                                        'id': str(uuid.uuid4()),
+                                        'filename': gps_file.name,
+                                        'distance': float(res['total_distance']),
+                                        'pings': int(res['pings']),
+                                        'format_detected': res['format'],
+                                        'imported_at': datetime.datetime.now().isoformat()
+                                    }
+                                    gps_imports.append(new_import)
+                                    aud_data['gps_imports'] = gps_imports
+                                    audit_camp['audited_data'] = aud_data
+                                    storage.save_campaign(audit_camp, selected_audit_id)
+                                    
+                                    st.success(remove_diacritics(_("Date GPS adaugate la istoric!")) + f" ({res['format']}, {res['total_distance']:.2f} km)")
+                                    st.rerun()
                             except Exception as e:
                                 st.error(f"Eroare procesare GPS: {e}")
+                                
+                    if gps_imports:
+                        with st.expander(remove_diacritics(_("Istoric Importuri GPS"))):
+                            for g_imp in gps_imports:
+                                hc1, hc2, hc3 = st.columns([3, 2, 1])
+                                hc1.write(f"📄 {g_imp.get('filename', 'Unknown')}")
+                                hc2.write(f"**{g_imp.get('distance', 0):.2f} km**")
+                                if hc3.button("🗑️", key=f"del_gps_{g_imp['id']}"):
+                                    gps_imports = [x for x in gps_imports if x['id'] != g_imp['id']]
+                                    aud_data['gps_imports'] = gps_imports
+                                    audit_camp['audited_data'] = aud_data
+                                    storage.save_campaign(audit_camp, selected_audit_id)
+                                    st.toast(remove_diacritics(_("Import sters!")))
+                                    st.rerun()
                 
                 # --- VnNox Section ---
                 with col_a2:
                     st.write("### 📺 Proof of Play (VnNox)")
                     vnnox_file = st.file_uploader(_("Încarcă Log VnNox/TB"), type=["csv", "txt"], key=f"vn_up_{selected_audit_id}")
                     
-                    current_hours = aud_data.get('vnnox_stats', {}).get('confirmed_hours', 0.0)
                     st.metric(_("Ore Difuzare Confirmate"), f"{current_hours:.1f} h")
                     
                     if vnnox_file:
@@ -410,22 +441,68 @@ def list_campaigns():
                                 spot_count = content.count("PLAY") if "PLAY" in content else len(content.splitlines())
                                 estimated_hours = (spot_count * audit_camp.get('spot_duration', 10)) / 3600
                                 
-                                aud_data['vnnox_stats'] = {
-                                    'confirmed_hours': float(estimated_hours),
-                                    'total_spots': spot_count,
-                                    'last_import': datetime.datetime.now().isoformat()
+                                new_vn_import = {
+                                    'id': str(uuid.uuid4()),
+                                    'filename': vnnox_file.name,
+                                    'hours': float(estimated_hours),
+                                    'spots': spot_count,
+                                    'imported_at': datetime.datetime.now().isoformat()
                                 }
+                                vnnox_imports.append(new_vn_import)
+                                aud_data['vnnox_imports'] = vnnox_imports
                                 audit_camp['audited_data'] = aud_data
                                 storage.save_campaign(audit_camp, selected_audit_id)
-                                st.success(_("Date Proof of Play importate!"))
+                                st.success(remove_diacritics(_("Fisier Proof of Play adaugat la istoric!")))
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Eroare procesare PoP: {e}")
+                                
+                    if vnnox_imports:
+                        with st.expander(remove_diacritics(_("Istoric Importuri VnNox"))):
+                            for v_imp in vnnox_imports:
+                                vc1, vc2, vc3 = st.columns([3, 2, 1])
+                                vc1.write(f"📄 {v_imp.get('filename', 'Unknown')}")
+                                vc2.write(f"**{v_imp.get('hours', 0):.1f} h**")
+                                if vc3.button("🗑️", key=f"del_vn_{v_imp['id']}"):
+                                    vnnox_imports = [x for x in vnnox_imports if x['id'] != v_imp['id']]
+                                    aud_data['vnnox_imports'] = vnnox_imports
+                                    audit_camp['audited_data'] = aud_data
+                                    storage.save_campaign(audit_camp, selected_audit_id)
+                                    st.toast(remove_diacritics(_("Import sters!")))
+                                    st.rerun()
                 
                 st.divider()
                 
+                # --- Samples & Documentation Section ---
+                st.write("### 📄 " + remove_diacritics(_("Modele Fisiere & Ajutor")))
+                s_col1, s_col2 = st.columns(2)
+                
+                with s_col1:
+                    st.info(remove_diacritics(_("Descarca modelele corecte pentru a asigura un import fara erori.")))
+                    gps_sample = "timestamp,latitude,longitude,speed,distance\n2026-03-05 09:00:00,46.7712,23.5916,20,0.1\n2026-03-05 09:00:15,46.7715,23.5920,22,0.15\n"
+                    st.download_button(
+                        label="📥 " + remove_diacritics(_("Descarca Model GPS (CSV)")),
+                        data=gps_sample,
+                        file_name="model_gps_audit.csv",
+                        mime="text/csv",
+                        key=f"dl_gps_{selected_audit_id}"
+                    )
+                
+                with s_col2:
+                    st.info(remove_diacritics(_("Log-ul VnNox trebuie sa contina cuvantul 'PLAY' pentru validare.")))
+                    vn_sample = "[2026-03-05 09:00:10] ACTION: PLAY - DURATION: 10s\n[2026-03-05 09:01:15] ACTION: PLAY - DURATION: 10s\n"
+                    st.download_button(
+                        label="📥 " + remove_diacritics(_("Descarca Model VnNox (TXT)")),
+                        data=vn_sample,
+                        file_name="model_vnnox_audit.txt",
+                        mime="text/plain",
+                        key=f"dl_vn_{selected_audit_id}"
+                    )
+
+                st.divider()
+                
                 # --- Weather Section ---
-                st.write("### ☁️ Factor Corecție Meteo")
+                st.write("### ☁️ " + remove_diacritics(_("Factor Corectie Meteo")))
                 w_penalty = st.slider(_("Impact Meteo (Penalizare/Bonus %)"), min_value=-50, max_value=20, value=int(aud_data.get('weather_penalty', 0)), help=_("Afectează numărul de afișări auditate în raportul financiar."))
                 
                 if st.button(_("Salvează Factor Meteo"), key=f"save_w_{selected_audit_id}"):
