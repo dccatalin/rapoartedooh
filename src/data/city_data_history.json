@@ -634,7 +634,7 @@
             "last_updated": "2025-12-07T18:00:47.011129",
             "osm_poi_count": 0,
             "osm_road_count": 0,
-            "update_preference": "manual"
+            "update_preference": "public"
         },
         "current": {
             "ref": "2025-Q4"
@@ -656,13 +656,33 @@
             "avg_commute_distance_km": 8,
             "description": "City with population 300,000",
             "source": "Public",
-            "last_updated": "2025-12-06T20:07:48.913915",
-            "update_preference": "manual",
+            "last_updated": "2026-03-09T14:21:48.872317",
+            "update_preference": "public",
             "osm_poi_count": 0,
             "osm_road_count": 0
         },
         "current": {
-            "ref": "2025-Q4"
+            "ref": "2026-Q1"
+        },
+        "2026-Q1": {
+            "population": 480442,
+            "county": "Bucuresti",
+            "active_population_pct": 63,
+            "daily_traffic_total": 150000,
+            "daily_pedestrian_total": 180000,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "public_transport": 34,
+                "cycling": 4
+            },
+            "avg_commute_distance_km": 8.0,
+            "description": "City with population 300,000",
+            "source": "Manual Update",
+            "last_updated": "2026-03-09T14:22:19.103037",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
         }
     },
     "Ilfov": {
@@ -727,7 +747,7 @@
             "avg_commute_distance_km": 8,
             "description": "City with population 10,043",
             "source": "User Input",
-            "last_updated": "2026-03-03T11:58:43.345876",
+            "last_updated": "2026-03-09T14:09:12.725190",
             "update_preference": "manual"
         },
         "current": {
@@ -848,6 +868,53 @@
             "update_preference": "manual",
             "osm_poi_count": 0,
             "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2026-Q1"
+        }
+    },
+    "Bucuresti Sector 6": {
+        "2026-Q1": {
+            "population": 393483,
+            "county": "Bucuresti",
+            "active_population_pct": 62,
+            "daily_traffic_total": 250621,
+            "daily_pedestrian_total": 160025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "public_transport": 34,
+                "cycling": 4
+            },
+            "avg_commute_distance_km": 8.0,
+            "description": "City with population 10,043",
+            "source": "Manual Update",
+            "last_updated": "2026-03-09T14:13:03.328199",
+            "update_preference": "manual",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
+        },
+        "current": {
+            "ref": "2026-Q1"
+        }
+    },
+    "Bucuresti Sector 2": {
+        "2026-Q1": {
+            "population": 355455,
+            "active_population_pct": 60,
+            "daily_traffic_total": 220297,
+            "daily_pedestrian_total": 216917,
+            "modal_split": {
+                "auto": 36,
+                "walking": 25,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "Date extrapolate bazate pe populatia de 355,455 locuitori.",
+            "update_preference": "manual",
+            "last_updated": "2026-03-09T14:21:14.627817",
+            "source": "User Input / Extrapolation"
         },
         "current": {
             "ref": "2026-Q1"

@@ -93,6 +93,7 @@ class Vehicle(Base):
     
     mileage = Column(Integer, default=0)
     generator_hours = Column(Float, default=0.0)
+    screens_count = Column(Integer, default=3)
     is_archived = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=datetime.now)
@@ -103,6 +104,7 @@ class Vehicle(Base):
     driver = relationship("Driver", back_populates="assigned_vehicle_rel", foreign_keys=[driver_id])
     schedules = relationship("VehicleSchedule", back_populates="vehicle", cascade="all, delete-orphan")
     maintenance_records = relationship("MaintenanceRecord", back_populates="vehicle", cascade="all, delete-orphan")
+    routes = relationship("CampaignRoute", back_populates="vehicle")
 
 class Campaign(Base):
     __tablename__ = 'campaigns'
@@ -162,6 +164,7 @@ class Campaign(Base):
     # Relationships
     spots = relationship("CampaignSpot", back_populates="campaign", cascade="all, delete-orphan")
     generated_reports = relationship("GeneratedReport", back_populates="campaign", cascade="all, delete-orphan")
+    routes = relationship("CampaignRoute", back_populates="campaign", cascade="all, delete-orphan")
 
 class GeneratedReport(Base):
     __tablename__ = 'generated_reports'
@@ -246,8 +249,48 @@ class DriverSchedule(Base):
     details = Column(String(200))
     created_at = Column(DateTime, default=datetime.now)
     last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
     driver = relationship(Driver, back_populates="schedules")
+
+class TrafficLocation(Base):
+    """Stores specific fixed locations with audited traffic data (e.g., BRAT intersections)"""
+    __tablename__ = 'traffic_locations'
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(200), nullable=False)
+    city_name = Column(String(100), nullable=False)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    daily_traffic = Column(Integer, default=0)
+    pedestrian_traffic = Column(Integer, default=0)
+    source = Column(String(50), default='BRAT')
+    notes = Column(Text)
+    
+    created_at = Column(DateTime, default=datetime.now)
+    last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class CampaignRoute(Base):
+    """Stores complex route assignments for campaigns per vehicle and schedule"""
+    __tablename__ = 'campaign_routes'
+    __table_args__ = {'extend_existing': True}
+    
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    campaign_id = Column(String(36), ForeignKey('campaigns.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(200), nullable=False)
+    geojson_data = Column(JSON)  # Store the actual path/route
+    
+    # Optional specific allocations
+    vehicle_id = Column(String(36), ForeignKey('vehicles.id'), nullable=True)
+    date_start = Column(Date, nullable=True)
+    date_end = Column(Date, nullable=True)
+    time_start = Column(String(10), nullable=True) # e.g. "08:00"
+    time_end = Column(String(10), nullable=True)   # e.g. "12:00"
+    
+    created_at = Column(DateTime, default=datetime.now)
+    last_modified = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    campaign = relationship("Campaign", back_populates="routes")
+    vehicle = relationship("Vehicle", back_populates="routes")
 
 class Document(Base):
     __tablename__ = 'documents'

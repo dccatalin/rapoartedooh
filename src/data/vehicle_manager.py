@@ -52,6 +52,7 @@ class VehicleManager:
             'casco_expiry': vehicle.casco_expiry.isoformat() if vehicle.casco_expiry else None,
             'mileage': vehicle.mileage,
             'generator_hours': vehicle.generator_hours,
+            'screens_count': vehicle.screens_count,
             'is_archived': vehicle.is_archived
         }
     
@@ -65,7 +66,8 @@ class VehicleManager:
         rovinieta_expiry: datetime.date = None,
         casco_expiry: datetime.date = None,
         mileage: int = 0,
-        generator_hours: float = 0.0
+        generator_hours: float = 0.0,
+        screens_count: int = 3
     ) -> str:
         """Add a new vehicle"""
         session = SessionLocal()
@@ -82,7 +84,8 @@ class VehicleManager:
                 rovinieta_expiry=rovinieta_expiry,
                 casco_expiry=casco_expiry,
                 mileage=mileage,
-                generator_hours=generator_hours
+                generator_hours=generator_hours,
+                screens_count=screens_count
             )
             session.add(vehicle)
             session.flush() # Get ID
@@ -157,7 +160,8 @@ class VehicleManager:
         casco_expiry: Optional[datetime.date] = None,
         status_date: Optional[datetime.datetime] = None,
         mileage: Optional[int] = None,
-        generator_hours: Optional[float] = None
+        generator_hours: Optional[float] = None,
+        screens_count: Optional[int] = None
     ) -> bool:
         """Update vehicle information"""
         session = SessionLocal()
@@ -179,6 +183,7 @@ class VehicleManager:
             if casco_expiry is not None: vehicle.casco_expiry = casco_expiry
             if mileage is not None: vehicle.mileage = mileage
             if generator_hours is not None: vehicle.generator_hours = generator_hours
+            if screens_count is not None: vehicle.screens_count = screens_count
             
             # Track status changes
             if status is not None and status in self.VALID_STATUSES:

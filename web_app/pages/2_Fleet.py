@@ -54,13 +54,14 @@ def vehicle_tab():
             cas = c4.date_input(_("Casco Expiry"))
             
             st.write("--- " + _("Initial Stats") + " ---")
-            s_col1, s_col2 = st.columns(2)
+            s_col1, s_col2, s_col3 = st.columns(3)
             v_mil = s_col1.number_input(_("Current Mileage (km)"), min_value=0, value=0)
             v_gen = s_col2.number_input(_("Generator Hours"), min_value=0.0, value=0.0)
+            v_screens = s_col3.number_input(_("Ecrane (POC)"), min_value=1, value=3)
             
             if st.form_submit_button(_("Save Vehicle")):
                 if v_name and v_reg:
-                    res = vehicle_manager.add_vehicle(v_name, v_reg, v_status, rca, itp, rov, cas, mileage=v_mil, generator_hours=v_gen)
+                    res = vehicle_manager.add_vehicle(v_name, v_reg, v_status, rca, itp, rov, cas, mileage=v_mil, generator_hours=v_gen, screens_count=v_screens)
                     if res:
                         st.success(_("Vehicle") + f" {v_reg} " + _("saved successfully!"))
                         st.rerun()
@@ -194,16 +195,17 @@ def vehicle_tab():
                 cas_v = e4.date_input(_("Casco"), value=datetime.date.fromisoformat(veh['casco_expiry']) if veh.get('casco_expiry') else datetime.date.today())
 
                 st.write("**" + _("Stats") + "**")
-                s_col1, s_col2 = st.columns(2)
+                s_col1, s_col2, s_col3 = st.columns(3)
                 v_mil = s_col1.number_input(_("Mileage (km)"), value=int(veh.get('mileage', 0)))
                 v_gen = s_col2.number_input(_("Generator Hours"), value=float(veh.get('generator_hours', 0.0)))
+                v_screens = s_col3.number_input(_("Ecrane (POC)"), min_value=1, value=int(veh.get('screens_count', 3)))
 
                 if st.form_submit_button(_("💾 Save Vehicle Details"), width="stretch"):
                     # Update vehicle info (NOT status - that's handled separately)
                     vehicle_manager.update_vehicle(
                         veh_id, name=v_name, registration=v_reg,
                         rca_expiry=rca_v, itp_expiry=itp_v, rovinieta_expiry=rov_v, casco_expiry=cas_v,
-                        mileage=v_mil, generator_hours=v_gen
+                        mileage=v_mil, generator_hours=v_gen, screens_count=v_screens
                     )
                     
                     # Handle driver assignment

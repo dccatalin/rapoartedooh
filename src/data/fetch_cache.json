@@ -193,9 +193,9 @@
             "osm_poi_count": 0,
             "osm_road_count": 0,
             "source": "OpenStreetMap",
-            "last_updated": "2025-12-06T20:07:16.858760"
+            "last_updated": "2026-03-09T14:21:48.868770"
         },
-        "timestamp": "2025-12-06T20:07:16.858960"
+        "timestamp": "2026-03-09T14:21:48.869188"
     },
     "Braila": {
         "data": {
@@ -205,5 +205,14 @@
             "last_updated": "2026-03-03T12:02:24.690624"
         },
         "timestamp": "2026-03-03T12:02:24.691031"
+    },
+    "Bucuresti Sector 6": {
+        "data": {
+            "osm_poi_count": 0,
+            "osm_road_count": 0,
+            "source": "OpenStreetMap",
+            "last_updated": "2026-03-09T14:09:32.543424"
+        },
+        "timestamp": "2026-03-09T14:09:32.543518"
     }
 }

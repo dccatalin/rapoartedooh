@@ -282,6 +282,10 @@ class CampaignReportGenerator(ReportGenerator):
         if not shared_mode:
             for v_id in all_vids:
                 if not v_id: continue
+                # Fetch screens multiplier
+                vh = self.vehicle_manager.get_vehicle(v_id) if self.vehicle_manager else {}
+                scrop_mult = vh.get('screens_count', 3) if vh else 3
+
                 v_itinerary = data.get('city_periods', {}).get(v_id, {})
                 v_schedules_map = data.get('city_schedules', {}).get(v_id, {})
                 if not isinstance(v_itinerary, dict): continue
@@ -295,11 +299,16 @@ class CampaignReportGenerator(ReportGenerator):
                     city_profile = self.city_manager.get_city_data_for_period(city_name, c_start)
                     if not city_profile: continue
                     inc = self._calculate_impressions_by_mode(city_profile.get('modal_split', default_modal_split), city_profile.get('daily_traffic_total', 50000), city_profile.get('daily_pedestrian_total', 50000), duration_metrics['hours_per_day'], (c_end - c_start).days+1, c_start, city_name, spot_duration=data.get('spot_duration', 10), loop_duration=data.get('loop_duration', 60), is_exclusive=data.get('is_exclusive', False), city_schedule=c_schedule)
-                    total_impressions_data['auto'] += inc['auto']; total_impressions_data['pedestrian'] += inc['pedestrian']; total_impressions_data['total'] += inc['total']
+                    total_impressions_data['auto'] += inc['auto'] * scrop_mult
+                    total_impressions_data['pedestrian'] += inc['pedestrian'] * scrop_mult
+                    total_impressions_data['total'] += inc['total'] * scrop_mult
                     for ev in inc['events']:
                         if ev not in total_impressions_data['events']: total_impressions_data['events'].append(ev)
         else:
-            v_count = len([v for v in all_vids if v]) or 1
+            # Shared mode multiplier logic
+            scrop_mult_total = sum((self.vehicle_manager.get_vehicle(v).get('screens_count', 3) if self.vehicle_manager and self.vehicle_manager.get_vehicle(v) else 3) for v in all_vids if v)
+            if scrop_mult_total == 0: scrop_mult_total = 3
+            
             for city_name in cities:
                 all_periods = data.get('city_periods', {})
                 periods = all_periods.get(city_name, [{'start': data['start_date'], 'end': data['end_date']}])
@@ -313,7 +322,9 @@ class CampaignReportGenerator(ReportGenerator):
                     city_profile = self.city_manager.get_city_data_for_period(city_name, c_start)
                     if not city_profile: continue
                     inc = self._calculate_impressions_by_mode(city_profile.get('modal_split', default_modal_split), city_profile.get('daily_traffic_total', 50000), city_profile.get('daily_pedestrian_total', 50000), duration_metrics['hours_per_day'], (c_end - c_start).days+1, c_start, city_name, spot_duration=data.get('spot_duration', 10), loop_duration=data.get('loop_duration', 60), is_exclusive=data.get('is_exclusive', False), city_schedule=c_schedule)
-                    total_impressions_data['auto'] += inc['auto'] * v_count; total_impressions_data['pedestrian'] += inc['pedestrian'] * v_count; total_impressions_data['total'] += inc['total'] * v_count
+                    total_impressions_data['auto'] += inc['auto'] * scrop_mult_total
+                    total_impressions_data['pedestrian'] += inc['pedestrian'] * scrop_mult_total
+                    total_impressions_data['total'] += inc['total'] * scrop_mult_total
                     for ev in inc['events']:
                         if ev not in total_impressions_data['events']: total_impressions_data['events'].append(ev)
         return total_impressions_data
@@ -466,13 +477,12 @@ class CampaignReportGenerator(ReportGenerator):
         reach, ots = audience_metrics['reach'], audience_metrics['ots']
 
         metrics_data = [
-            [Paragraph(f"<b>{remove_diacritics(_('Metric'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Value'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Description'))}</b>", self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("Total Impressions")), self.styles['Normal']), Paragraph(f"{impressions['total']:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Contacte vizuale brute (Auto + Pietonal) ajustate cu factori de vizibilitate.")), self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("Total Hours")), self.styles['Normal']), Paragraph(f"{duration_metrics['total_campaign_hours']:.1f}", self.styles['Normal']), Paragraph(remove_diacritics(_("Timp net de emisie, excluzand stationarea si timpii morti.")), self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("Avg Speed")), self.styles['Normal']), Paragraph(f"{data.get('vehicle_speed_kmh', 25)} km/h", self.styles['Normal']), Paragraph(remove_diacritics(_("Viteza medie de croaziera aliniata cu indicii de mobilitate PMUD.")), self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("Stationing")), self.styles['Normal']), Paragraph(f"{data.get('stationing_min_per_hour', 15)} min/h", self.styles['Normal']), Paragraph(remove_diacritics(_("Maximizes exposure in high-footfall areas (20-30% OTS boost).")), self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("Potential Reach")), self.styles['Normal']), Paragraph(f"{reach:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Persoane unice expuse (cca. 50-65% din populatia activa).")), self.styles['Normal'])],
-            [Paragraph(remove_diacritics(_("OTS")), self.styles['Normal']), Paragraph(f"{ots}", self.styles['Normal']), Paragraph(remove_diacritics(_("Opportunity to See - frecventa medie de vizionare per persoana.")), self.styles['Normal'])]
+            [Paragraph(f"<b>{remove_diacritics(_('Metric'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Estimat'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Livrat (Auditat)'))}</b>", self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Total Impressions")), self.styles['Normal']), Paragraph(f"{impressions['total']:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Vezi Raport DOOH pt. Auditing")), self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Total Hours")), self.styles['Normal']), Paragraph(f"{duration_metrics['total_campaign_hours']:.1f}", self.styles['Normal']), Paragraph(f"{sum(i.get('hours', 0) for i in data.get('audited_data', {}).get('vnnox_imports', [])):.1f}h" if data.get('audited_data', {}).get('vnnox_imports') else "-", self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Dis. Traseu (Km)")), self.styles['Normal']), Paragraph(f"{route_metrics['total_km']} km", self.styles['Normal']), Paragraph(f"{sum(i.get('distance', 0) for i in data.get('audited_data', {}).get('gps_imports', [])):.2f} km" if data.get('audited_data', {}).get('gps_imports') else "-", self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("Potential Reach")), self.styles['Normal']), Paragraph(f"{reach:,}", self.styles['Normal']), Paragraph("-", self.styles['Normal'])],
+            [Paragraph(remove_diacritics(_("OTS")), self.styles['Normal']), Paragraph(f"{ots}", self.styles['Normal']), Paragraph("-", self.styles['Normal'])]
         ]
         
         t_metrics = Table(metrics_data, colWidths=[1.8*inch, 1.2*inch, 3.5*inch])
@@ -546,3 +556,20 @@ class CampaignReportGenerator(ReportGenerator):
             story.append(Paragraph(remove_diacritics(title), self.styles['Normal']))
             story.append(Paragraph(remove_diacritics(desc), self.styles['Normal']))
             story.append(Spacer(1, 8))
+            
+        # Add Acronym Legend
+        story.append(Spacer(1, 12))
+        story.append(Paragraph("<b>" + remove_diacritics(_("Glosar Termeni si Acronime")) + "</b>", self.styles['Heading2']))
+        
+        legend_text = [
+            ("<b>eCPK</b>", _("Effective Cost Per K (Mille) - Costul efectiv pentru 1000 de impresii (anterior denumit eCPM). Litera K (kilo) o inlocuieste pe M (mille) pentru a evita confuzia cu mila (mile).")),
+            ("<b>OTS</b>", _("Opportunity To See - Numarul mediu de ori pe care o persoana din audienta a fost expusa la mesaj.")),
+            ("<b>PMUD</b>", _("Planul de Mobilitate Urbana Durabila - Document strategic care analizeaza mobilitatea la nivelul oraselor din Romania.")),
+            ("<b>SOV</b>", _("Share of Voice - Procentul din timpul total de difuzare pe care il ocupa spotul campaniei in bucla (loop) de pe ecrane.")),
+            ("<b>Reach</b>", _("Audienta neta (acoperire) formata din unici expusi cel putin o data la mesaj, raportat la procentajul populatiei active.")),
+            ("<b>POC</b>", _("Point of Contact / Ecrane - Numarul de fete (ecrane LED) montate pe vehicul. Functionalizeaza ca multiplicator pentru audienta."))
+        ]
+        
+        for t, d in legend_text:
+            story.append(Paragraph(remove_diacritics(f"{t}: {d}"), self.styles['Normal']))
+            story.append(Spacer(1, 4))

@@ -1,5 +1,7 @@
 import json
 import os
+from src.data.db_config import SessionLocal
+from src.data.models import TrafficLocation
 
 class CityDataManager:
     def __init__(self):
@@ -494,3 +496,92 @@ class CityDataManager:
         except Exception as e:
             print(f"Error saving special events: {e}")
             return False
+
+    # --- Traffic Location CRUD Operations ---
+    def get_all_traffic_locations(self, city_name=None):
+        """Get all fixed traffic locations, optionally filtered by city"""
+        db = SessionLocal()
+        try:
+            query = db.query(TrafficLocation)
+            if city_name:
+                search_name = city_name.lower().strip()
+                query = query.filter(TrafficLocation.city_name.ilike(f"%{search_name}%"))
+            return query.all()
+        finally:
+            db.close()
+
+    def get_traffic_location(self, location_id):
+        """Get a specific traffic location by ID"""
+        db = SessionLocal()
+        try:
+            return db.query(TrafficLocation).filter(TrafficLocation.id == location_id).first()
+        finally:
+            db.close()
+
+    def add_traffic_location(self, data):
+        """Add a new traffic location"""
+        db = SessionLocal()
+        try:
+            new_loc = TrafficLocation(
+                name=data.get('name'),
+                city_name=data.get('city_name'),
+                latitude=float(data.get('latitude', 0.0)),
+                longitude=float(data.get('longitude', 0.0)),
+                daily_traffic=int(data.get('daily_traffic', 0)),
+                pedestrian_traffic=int(data.get('pedestrian_traffic', 0)),
+                source=data.get('source', 'BRAT'),
+                notes=data.get('notes', '')
+            )
+            db.add(new_loc)
+            db.commit()
+            db.refresh(new_loc)
+            return new_loc
+        except Exception as e:
+            print(f"Error adding traffic location: {e}")
+            db.rollback()
+            return None
+        finally:
+            db.close()
+
+    def update_traffic_location(self, location_id, data):
+        """Update an existing traffic location"""
+        db = SessionLocal()
+        try:
+            loc = db.query(TrafficLocation).filter(TrafficLocation.id == location_id).first()
+            if loc:
+                if 'name' in data: loc.name = data['name']
+                if 'city_name' in data: loc.city_name = data['city_name']
+                if 'latitude' in data: loc.latitude = float(data['latitude'])
+                if 'longitude' in data: loc.longitude = float(data['longitude'])
+                if 'daily_traffic' in data: loc.daily_traffic = int(data['daily_traffic'])
+                if 'pedestrian_traffic' in data: loc.pedestrian_traffic = int(data['pedestrian_traffic'])
+                if 'source' in data: loc.source = data['source']
+                if 'notes' in data: loc.notes = data['notes']
+                
+                db.commit()
+                db.refresh(loc)
+                return loc
+            return None
+        except Exception as e:
+            print(f"Error updating traffic location: {e}")
+            db.rollback()
+            return None
+        finally:
+            db.close()
+
+    def delete_traffic_location(self, location_id):
+        """Delete a traffic location"""
+        db = SessionLocal()
+        try:
+            loc = db.query(TrafficLocation).filter(TrafficLocation.id == location_id).first()
+            if loc:
+                db.delete(loc)
+                db.commit()
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting traffic location: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()

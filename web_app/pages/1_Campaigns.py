@@ -387,38 +387,75 @@ def list_campaigns():
                         if st.button(remove_diacritics(_("Procesează GPS")), key=f"proc_gps_{selected_audit_id}"):
                             try:
                                 from src.utils.gps_parser import parse_gps_log
-                                
                                 file_bytes = gps_file.getvalue()
                                 res = parse_gps_log(file_bytes, filename=gps_file.name)
                                 
-                                if res['format'] == 'unknown' or res['pings'] == 0:
+                                if res['format'] in ('unknown', 'empty') or res['pings'] == 0:
                                     st.warning(remove_diacritics(_("Formatul fisierului GPS nu este recunoscut sau fisierul este gol.")))
                                 else:
-                                    new_import = {
-                                        'id': str(uuid.uuid4()),
-                                        'filename': gps_file.name,
-                                        'distance': float(res['total_distance']),
-                                        'pings': int(res['pings']),
-                                        'format_detected': res['format'],
-                                        'imported_at': datetime.datetime.now().isoformat()
-                                    }
-                                    gps_imports.append(new_import)
-                                    aud_data['gps_imports'] = gps_imports
-                                    audit_camp['audited_data'] = aud_data
-                                    storage.save_campaign(audit_camp, selected_audit_id)
+                                    # Duplicate detection
+                                    new_start = res.get('date_start')
+                                    new_end = res.get('date_end')
+                                    dup_ids = []
+                                    if new_start and new_end:
+                                        for existing in gps_imports:
+                                            es = existing.get('date_start')
+                                            ee = existing.get('date_end')
+                                            # If dates exist -> compare ranges
+                                            if es and ee:
+                                                if not (new_end < es or new_start > ee):
+                                                    dup_ids.append(existing['id'])
+                                            else:
+                                                # Old import without dates: match by filename
+                                                if existing.get('filename') == gps_file.name:
+                                                    dup_ids.append(existing['id'])
                                     
-                                    st.success(remove_diacritics(_("Date GPS adaugate la istoric!")) + f" ({res['format']}, {res['total_distance']:.2f} km)")
-                                    st.rerun()
+                                    dup_key = f"gps_dup_confirmed_{selected_audit_id}"
+                                    if dup_ids and not st.session_state.get(dup_key):
+                                        st.warning(
+                                            f"⚠️ {remove_diacritics(_('Exista deja date GPS pentru perioada'))} "
+                                            f"**{new_start} – {new_end}**. "
+                                            f"{remove_diacritics(_('Apasa din nou pentru a inlocui datele existente sau sterge manual din istoric.'))}"
+                                        )
+                                        st.session_state[dup_key] = True
+                                    else:
+                                        # Remove duplicates if confirmed
+                                        if dup_ids:
+                                            gps_imports = [x for x in gps_imports if x['id'] not in dup_ids]
+                                        st.session_state.pop(dup_key, None)
+                                        
+                                        new_import = {
+                                            'id': str(uuid.uuid4()),
+                                            'filename': gps_file.name,
+                                            'distance': float(res['total_distance']),
+                                            'pings': int(res['pings']),
+                                            'format_detected': res['format'],
+                                            'gps_points': res.get('gps_points', []),
+                                            'date_start': res.get('date_start'),
+                                            'date_end': res.get('date_end'),
+                                            'imported_at': datetime.datetime.now().isoformat()
+                                        }
+                                        gps_imports.append(new_import)
+                                        aud_data['gps_imports'] = gps_imports
+                                        audit_camp['audited_data'] = aud_data
+                                        storage.save_campaign(audit_camp, selected_audit_id)
+                                        st.success(
+                                            remove_diacritics(_("Date GPS adaugate la istoric!")) +
+                                            f" | {res['format']} | {res['total_distance']:.2f} km" +
+                                            (f" | {len(res.get('gps_points',[]))} pct GPS" if res.get('gps_points') else "")
+                                        )
+                                        st.rerun()
                             except Exception as e:
                                 st.error(f"Eroare procesare GPS: {e}")
                                 
                     if gps_imports:
                         with st.expander(remove_diacritics(_("Istoric Importuri GPS"))):
                             for g_imp in gps_imports:
-                                hc1, hc2, hc3 = st.columns([3, 2, 1])
+                                hc1, hc2, hc3, hc4 = st.columns([3, 1, 1, 1])
                                 hc1.write(f"📄 {g_imp.get('filename', 'Unknown')}")
                                 hc2.write(f"**{g_imp.get('distance', 0):.2f} km**")
-                                if hc3.button("🗑️", key=f"del_gps_{g_imp['id']}"):
+                                hc3.caption(f"{g_imp.get('date_start', '-')}")
+                                if hc4.button("🗑️", key=f"del_gps_{g_imp['id']}"):
                                     gps_imports = [x for x in gps_imports if x['id'] != g_imp['id']]
                                     aud_data['gps_imports'] = gps_imports
                                     audit_camp['audited_data'] = aud_data
@@ -436,34 +473,76 @@ def list_campaigns():
                     if vnnox_file:
                         if st.button(_("Procesează PoP"), key=f"proc_pop_{selected_audit_id}"):
                             try:
-                                # Mock VnNox processing
-                                content = vnnox_file.getvalue().decode("utf-8")
-                                spot_count = content.count("PLAY") if "PLAY" in content else len(content.splitlines())
-                                estimated_hours = (spot_count * audit_camp.get('spot_duration', 10)) / 3600
+                                from src.utils.vnnox_parser import parse_vnnox_csv
+                                result = parse_vnnox_csv(vnnox_file)
+                                fmt_label = "Details (per play)" if result['format'] == 'details' else "Overview (centralizat)"
                                 
-                                new_vn_import = {
-                                    'id': str(uuid.uuid4()),
-                                    'filename': vnnox_file.name,
-                                    'hours': float(estimated_hours),
-                                    'spots': spot_count,
-                                    'imported_at': datetime.datetime.now().isoformat()
-                                }
-                                vnnox_imports.append(new_vn_import)
-                                aud_data['vnnox_imports'] = vnnox_imports
-                                audit_camp['audited_data'] = aud_data
-                                storage.save_campaign(audit_camp, selected_audit_id)
-                                st.success(remove_diacritics(_("Fisier Proof of Play adaugat la istoric!")))
-                                st.rerun()
+                                # Duplicate detection
+                                new_start = result.get('date_start')
+                                new_end = result.get('date_end')
+                                dup_ids = []
+                                if new_start and new_end:
+                                    for existing in vnnox_imports:
+                                        es = existing.get('date_start')
+                                        ee = existing.get('date_end')
+                                        if es and ee:
+                                            if not (new_end < es or new_start > ee):
+                                                dup_ids.append(existing['id'])
+                                        else:
+                                            # Fallback for old imports
+                                            if existing.get('filename') == vnnox_file.name:
+                                                dup_ids.append(existing['id'])
+                                
+                                dup_key = f"vn_dup_confirmed_{selected_audit_id}"
+                                if dup_ids and not st.session_state.get(dup_key):
+                                    st.warning(
+                                        f"⚠️ {remove_diacritics(_('Exista deja date VnNox pentru perioada'))} "
+                                        f"**{new_start} – {new_end}**. "
+                                        f"{remove_diacritics(_('Apasa din nou pentru a inlocui datele existente.'))}"
+                                    )
+                                    st.session_state[dup_key] = True
+                                else:
+                                    if dup_ids:
+                                        vnnox_imports = [x for x in vnnox_imports if x['id'] not in dup_ids]
+                                    st.session_state.pop(dup_key, None)
+                                    
+                                    new_vn_import = {
+                                        'id': str(uuid.uuid4()),
+                                        'filename': vnnox_file.name,
+                                        'hours': result['total_hours'],
+                                        'spots': result['total_spots'],
+                                        'format': result['format'],
+                                        'total_seconds': result['total_seconds'],
+                                        'spots_summary': result.get('spots_summary', []),
+                                        'date_start': result.get('date_start'),
+                                        'date_end': result.get('date_end'),
+                                        'imported_at': datetime.datetime.now().isoformat()
+                                    }
+                                    vnnox_imports.append(new_vn_import)
+                                    aud_data['vnnox_imports'] = vnnox_imports
+                                    audit_camp['audited_data'] = aud_data
+                                    storage.save_campaign(audit_camp, selected_audit_id)
+                                    msg = (
+                                        f"Format: **{fmt_label}** | "
+                                        f"Spoturi: **{result['total_spots']:,}** | "
+                                        f"Durata: **{result['total_hours']:.2f} h**"
+                                    )
+                                    if result['errors']:
+                                        st.warning(remove_diacritics(_("Import OK cu avertismente: ")) + msg)
+                                    else:
+                                        st.success(remove_diacritics(_("VnNox importat cu succes! ")) + msg)
+                                    st.rerun()
                             except Exception as e:
-                                st.error(f"Eroare procesare PoP: {e}")
+                                st.error(f"Eroare procesare VnNox: {e}")
                                 
                     if vnnox_imports:
                         with st.expander(remove_diacritics(_("Istoric Importuri VnNox"))):
                             for v_imp in vnnox_imports:
-                                vc1, vc2, vc3 = st.columns([3, 2, 1])
+                                vc1, vc2, vc3, vc4 = st.columns([3, 1, 1, 1])
                                 vc1.write(f"📄 {v_imp.get('filename', 'Unknown')}")
-                                vc2.write(f"**{v_imp.get('hours', 0):.1f} h**")
-                                if vc3.button("🗑️", key=f"del_vn_{v_imp['id']}"):
+                                vc2.write(f"**{v_imp.get('hours', 0):.2f} h**")
+                                vc3.caption(f"{v_imp.get('spots', 0):,} spoturi")
+                                if vc4.button("🗑️", key=f"del_vn_{v_imp['id']}"):
                                     vnnox_imports = [x for x in vnnox_imports if x['id'] != v_imp['id']]
                                     aud_data['vnnox_imports'] = vnnox_imports
                                     audit_camp['audited_data'] = aud_data
@@ -2042,7 +2121,7 @@ def campaign_form(edit_id=None):
         cost_km = col_f1.number_input(_("Cost per km (€)"), min_value=0.0, value=float(existing_data.get('cost_per_km', 0.0)), step=0.01, key=f"cost_km_{edit_id or 'new'}")
         fixed_costs = col_f2.number_input(_("Fixed Costs (€)"), min_value=0.0, value=float(existing_data.get('fixed_costs', 0.0)), step=1.0, key=f"fixed_costs_{edit_id or 'new'}")
         revenue = col_f3.number_input(_("Expected Revenue (€)"), min_value=0.0, value=float(existing_data.get('expected_revenue', 0.0)), step=1.0, key=f"revenue_{edit_id or 'new'}")
-        budget_eur = col_f4.number_input(_("Campaign Budget (EUR)"), min_value=0.0, value=float(existing_data.get('budget_eur', 0.0)), step=100.0, key=f"budget_eur_{edit_id or 'new'}", help=_("Used for eCPM calculations in the DOOH Report."))
+        budget_eur = col_f4.number_input(_("Campaign Budget (EUR)"), min_value=0.0, value=float(existing_data.get('budget_eur', 0.0)), step=100.0, key=f"budget_eur_{edit_id or 'new'}", help=_("Used for eCPK calculations in the DOOH Report."))
 
         # Buttons (Outside a form they are regular buttons)
         col_btn1, col_btn2, empty_col = st.columns([1, 1, 2])
@@ -2173,7 +2252,7 @@ def render_reporting_interface(campaign_id):
     history = rep_storage.get_reports_by_campaign(campaign_id)
     latest_standard = rep_storage.get_latest_metrics(campaign_id, 'standard')
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     # --- 1. Standard Campaign Report ---
     with col1:
@@ -2188,7 +2267,6 @@ def render_reporting_interface(campaign_id):
                     st.success(_("Success!"))
                     st.rerun()
 
-        # Download Latest
         std_reports = [h for h in history if h['report_type'] == 'standard']
         if std_reports:
             latest = std_reports[0]
@@ -2196,11 +2274,8 @@ def render_reporting_interface(campaign_id):
                 with open(latest['file_path'], "rb") as f:
                     st.download_button(
                         label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
-                        data=f,
-                        file_name=latest['file_name'],
-                        mime="application/pdf",
-                        key="dl_std_latest",
-                        use_container_width=True
+                        data=f, file_name=latest['file_name'],
+                        mime="application/pdf", key="dl_std_latest", use_container_width=True
                     )
             else:
                 st.warning(_("PDF file not found on disk."))
@@ -2208,7 +2283,7 @@ def render_reporting_interface(campaign_id):
     # --- 2. DOOH Report ---
     with col2:
         st.markdown(f"### 💰 " + _("Raport DOOH"))
-        st.info(_("Includes eCPM, Media Value, and adjustments from GPS/VnNox logs."))
+        st.info(_("Includes eCPK, Media Value, and adjustments from GPS/VnNox logs."))
         
         if not latest_standard:
             st.warning("⚠️ " + _("Sequential Logic: You must generate a **Standard Report** first to establish baseline impressions for the DOOH Report."))
@@ -2222,7 +2297,6 @@ def render_reporting_interface(campaign_id):
                         st.success(_("Success!"))
                         st.rerun()
 
-        # Download Latest
         fin_reports = [h for h in history if h['report_type'] == 'dooh']
         if fin_reports:
             latest = fin_reports[0]
@@ -2230,50 +2304,90 @@ def render_reporting_interface(campaign_id):
                 with open(latest['file_path'], "rb") as f:
                     st.download_button(
                         label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
-                        data=f,
-                        file_name=latest['file_name'],
-                        mime="application/pdf",
-                        key="dl_fin_latest",
-                        use_container_width=True
+                        data=f, file_name=latest['file_name'],
+                        mime="application/pdf", key="dl_fin_latest", use_container_width=True
+                    )
+            else:
+                st.warning(_("PDF file not found on disk."))
+
+    # --- 3. PoP Annex Report ---
+    with col3:
+        st.markdown(f"### 🗃️ Anexă Proof of Play")
+        st.info(remove_diacritics(_("Tabel spoturi VnNox + Harta traseu GPS. Optional, bifati ce doriti sa includeti.")))
+        
+        incl_spots = st.checkbox(remove_diacritics(_("✅ Include tabel spoturi VnNox")), value=True, key="pop_chk_spots")
+        incl_map   = st.checkbox(remove_diacritics(_("🗺️ Include harta traseu GPS")),   value=True, key="pop_chk_map")
+        
+        if st.button("🚀 " + remove_diacritics(_("Generează Anexă PoP")), key="gen_pop", type="primary", use_container_width=True):
+            with st.spinner(remove_diacritics(_("Generare Anexă..."))):
+                try:
+                    from src.reporting.pop_annex_report_generator import PopAnnexReportGenerator
+                    gen = PopAnnexReportGenerator(storage)
+                    path = gen.generate_pop_annex(c, include_map=incl_map, include_spots=incl_spots)
+                    if path:
+                        st.success(remove_diacritics(_("Anexă generată!")))
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Eroare: {e}")
+
+        pop_reports = [h for h in history if h['report_type'] == 'pop_annex']
+        if pop_reports:
+            latest = pop_reports[0]
+            fd = latest.get('frozen_data', {})
+            st.caption(f"⚙️ {'🗺️' if fd.get('include_map') else ''} {'📋' if fd.get('include_spots') else ''}")
+            if os.path.exists(latest['file_path']):
+                with open(latest['file_path'], "rb") as f:
+                    st.download_button(
+                        label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
+                        data=f, file_name=latest['file_name'],
+                        mime="application/pdf", key="dl_pop_latest", use_container_width=True
                     )
             else:
                 st.warning(_("PDF file not found on disk."))
 
     st.divider()
     
-    # --- 3. Full History Table ---
+    # --- 3. Full History with CRUD ---
     if history:
-        st.write("### 📜 " + _("Generation History"))
-        h_data = []
+        st.write("### 📜 " + _("Istoric Rapoarte Generate"))
         for h in history:
-            h_type = "📋 Campaign" if h['report_type'] == 'standard' else "💰 DOOH"
-            h_data.append({
-                _("Date"): h['created_at'].replace('T', ' ')[:19],
-                _("Type"): h_type,
-                _("File"): h['file_name'],
-                "id": h['id'],
-                "path": h['file_path']
-            })
-        
-        df_h = pd.DataFrame(h_data)
-        st.dataframe(df_h[[_("Date"), _("Type"), _("File")]], use_container_width=True)
-        
-        # Individual Downloads
-        sel_repo = st.selectbox(_("Select a report to download from history"), options=df_h.index, format_func=lambda x: f"{df_h.iloc[x][_('Date')]} - {df_h.iloc[x][_( 'Type')]}")
-        if sel_repo is not None:
-            r_path = df_h.iloc[sel_repo]['path']
-            r_name = df_h.iloc[sel_repo][_("File")]
-            if os.path.exists(r_path):
-                with open(r_path, "rb") as f:
-                    st.download_button(
-                        label="📥 " + _("Download Selected Report"),
+            rtype = h['report_type']
+            if rtype == 'standard':
+                h_type = "📋 Campaign"
+            elif rtype == 'dooh':
+                h_type = "💰 DOOH"
+            else:
+                h_type = "🗃️ Anexă PoP"
+            h_date = h['created_at'].replace('T', ' ')[:19]
+            file_exists = os.path.exists(h['file_path'])
+            
+            hc1, hc2, hc3, hc4 = st.columns([1, 3, 1, 1])
+            hc1.write(h_type)
+            hc2.write(f"**{h_date}**  \n`{h['file_name']}`")
+            
+            if file_exists:
+                with open(h['file_path'], "rb") as f:
+                    hc3.download_button(
+                        label="📥",
                         data=f,
-                        file_name=r_name,
+                        file_name=h['file_name'],
                         mime="application/pdf",
-                        key=f"dl_hist_{sel_repo}"
+                        key=f"dl_hist_{h['id']}",
+                        help=_("Descarca raport"),
+                        use_container_width=True
                     )
             else:
-                st.error(_("File no longer exists."))
+                hc3.caption(_("Fisier lipsa"))
+            
+            if hc4.button("🗑️", key=f"del_rep_{h['id']}", help=_("Sterge raport"), use_container_width=True):
+                rep_storage.delete_report(h['id'])
+                if file_exists:
+                    try:
+                        os.remove(h['file_path'])
+                    except Exception:
+                        pass
+                st.toast(_("Raport sters!"))
+                st.rerun()
 
     if st.button("⬅️ " + _("Back to List"), key="back_to_list_bottom"):
         st.session_state.mode = "list"

@@ -225,7 +225,7 @@ def main():
             Secțiunea "Fleet" este responsabilă pentru managementul mașinilor, șoferilor și a documentelor aferente.
             
             #### 1. Vehicule & Mentenanță
-            *   **Adăugare Vehicule**: Fiecare vehicul nou introdus necesită date tehnice și de registru (ex: Număr Înmatriculare).
+            *   **Adăugare Vehicule**: Fiecare vehicul nou introdus necesită date tehnice și de registru (ex: Număr Înmatriculare). Un parametru important este **Ecrane (POC)**, care definește câte ecrane LED sunt montate pe mașină. Acesta funcționează ca un multiplicator pentru vizualizările (impresiile) estimate în rapoarte.
             *   **Istoric Status**: Statusul unui vehicul (ex: Defect, Activ) are un istoric detaliat, marcând modificările din timp. Când un vehicul intră în mentenanță, sistemul **alertează și blochează** alocarea sa pe campaniile existente ce se suprapun.
             *   **Mentenanță & Revizii**: Generații intrări în jurnal pentru schimburile de ulei, service frâne etc., setând alertele pe bază de km sau dată (ex: *Expiră la 150000 km*).
             
@@ -254,13 +254,18 @@ def main():
             - **Sincronizare Impresii**: Valorile de baza sunt acum sincronizate automat cu "Raportul de Campanie" standard pentru o consistenta totala.
             - **Metodologie Elite**: Rapoartele includ acum formule explicite bazate pe **PMUD 2021-2030**, luand in calcul **Factorul de Ocupare (1.65)**, **Densitatea Studentilor** si **Impactul Congestiei (LOS D-F)** asupra vizibilitatii.
             - **Ajustare pe Baza Datelor Auditate**: Daca sunt prezente date de teren (ore confirmate VnNox), sistemul scaleaza automat impresiile estimate pentru a reflecta performanta reala verificata.
-            - **eCPM (Effective Cost Per Mille)**: Calculeaza costul real la 1000 de impresii folosind **Bugetul Campaniei** introdus in detalii.
+            - **eCPK (Effective Cost Per K)**: Calculeaza costul real la 1000 de impresii folosind **Bugetul Campaniei** introdus in detalii.
             
+            #### 📊 Anexa PoP (Proof of Play)
+            Suplimentar Raportului DOOH, sistemul poate genera o anexă tehnică detaliată "Anexa PoP". Aceasta include:
+            - **Harta GPS (Traseu Zilnic)**: Harta vizuală auto-generată cu polilinii de culori diferite reprezentând cursele zilnice ale vehiculului.
+            - **Tabel Pings VnNox**: Preluare directă din log-urile VnNox cu dovada numărului de spoturi per ecran.
+
             #### 🔍 Gestiune Date Auditate & Modele Import
-            Tab-ul dedicat permite importul datelor de teren si configurarea costurilor pentru o precizie maxima.
-            - **Import GPS (Modele CSV)**: Incarca fisiere CSV cu distantele parcurse. Coloana `distance` este esentiala pentru calculul automat al km verificati.
-            - **Import VnNox / PoP (Modele TXT)**: Validare Proof of Play bazata pe cuvantul cheie **"PLAY"**. Sistemul numara aceste intrari pentru a calcula orele de emisie efective.
-            - **Impact Meteo**: Corectie manuala (%) pentru a reflecta conditiile atmosferice reale (ex: -10% pentru ploaie).
+            Tab-ul dedicat permite importul datelor de teren si configurarea costurilor pentru o precizie maxima. Sistemul previne **importul duplicatelor** (același interval de date) lăsând opțiunea de suprascriere a datelor vechi.
+            - **Import GPS (Model Excel/CSV)**: Generează coordonatele și construiește hărțile din Anexa PoP.
+            - **Import VnNox / PoP (Model CSV)**: Validare dovadă de rulare pe ecrane.
+            - **Impact Meteo**: Corectie manuala (%) pentru a reflecta conditiile atmosferice reale.
             """)
             
         with help_cities:
@@ -287,6 +292,22 @@ def main():
             #### Evenimente Speciale (Special Events)
             Dacă la o dată precisă există un Târg, Festival (UNTOLD de ex.) etc., creați un *Eveniment*, alocându-i multiplicatori (M > 1 crește impactul OTS recunoscut). 
             """)
+
+        st.divider()
+        st.subheader("📚 " + _("Glosar Termeni și Acronime"))
+        st.markdown(f"""
+        **eCPK (Effective Cost Per K)**: Costul efectiv pentru 1000 de impresii (anterior denumit eCPM). Litera K („kilo”) înlocuiește M („mille”) pentru a evita confuzia cu mila engleză.
+
+        **OTS (Opportunity To See)**: Numărul mediu de ori pe care o persoană din audiență a fost expusă la mesaj.
+        
+        **PMUD**: Planul de Mobilitate Urbană Durabilă - Document strategic care analizează mobilitatea urbană la nivelul orașelor din România.
+
+        **SOV (Share of Voice)**: Procentul din timpul total de difuzare pe care îl ocupă spotul unei campanii în bucla (loop-ul) de reclame de pe ecran.
+
+        **Reach**: Audiența netă sau acoperirea campaniei, reprezentând numărul unic de indivizi expuși mesajului proporțional cu populația activă.
+
+        **POC (Point of Contact / Ecrane)**: Numărul de ecrane LED active montate pe un vehicul. Funcționează automat ca un multiplicator pentru impresiile generate (ex: 3 ecrane = x3 vizualizări auto/pietonale aferente rutei).
+        """)
 
         st.divider()
         st.subheader("ℹ️ System Information")

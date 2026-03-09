@@ -15,7 +15,7 @@ from src.utils.i18n import _, remove_diacritics
 
 class DoohReportGenerator(CampaignReportGenerator):
     """
-    Independent generator for 'Raport DOOH' focusing on ROI, eCPM, and Audited metrics.
+    Independent generator for 'Raport DOOH' focusing on ROI, eCPK, and Audited metrics.
     """
     def __init__(self, data_manager):
         super().__init__(data_manager)
@@ -109,27 +109,37 @@ class DoohReportGenerator(CampaignReportGenerator):
             total_campaign_hours_base = duration['total_campaign_hours']
         
         aud_data = data.get('audited_data', {})
-        vn_stats = aud_data.get('vnnox_stats', {})
-        real_hours = vn_stats.get('confirmed_hours')
+        vnnox_imports = aud_data.get('vnnox_imports', [])
+        gps_imports = aud_data.get('gps_imports', [])
+        
+        real_hours = sum(i.get('hours', 0) for i in vnnox_imports) if vnnox_imports else None
         
         total_impressions = base_impressions
-        if real_hours is not None and total_campaign_hours_base > 0:
+        if real_hours is not None and real_hours > 0 and total_campaign_hours_base > 0:
+            # Scale impressions based on delivery
             scale = float(real_hours) / total_campaign_hours_base
             total_impressions = int(base_impressions * scale)
         
         budget = float(data.get('budget_eur', 0.0))
-        ecpm = (budget / total_impressions) * 1000 if total_impressions > 0 else 0
+        ecpk = (budget / total_impressions) * 1000 if total_impressions > 0 else 0
         market_cpm = 4.0
         media_value = (total_impressions / 1000) * market_cpm
         added_value_pct = ((media_value - budget) / budget * 100) if budget > 0 else 100
         
+        bonus_pct = 0
+        if real_hours is not None and total_campaign_hours_base > 0:
+            bonus_pct = max(0, ((real_hours - total_campaign_hours_base) / total_campaign_hours_base) * 100)
+            
+        added_value_label = remove_diacritics(_("Beneficiu (Added Value)")) if bonus_pct == 0 else remove_diacritics(_("Bonus Delivery + Added Value"))
+        
         fin_data = [
-            [Paragraph(f"<b>{remove_diacritics(_('Metrica'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Valoare'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Explicatie si Impact'))}</b>", self.styles['Normal'])],
-            [Paragraph(f"<b>{remove_diacritics(_('Total Impresii (Auditat)'))}</b>", self.styles['Normal']), Paragraph(f"{total_impressions:,}", self.styles['Normal']), Paragraph(remove_diacritics(_("Volum contacte vizuale certificat prin logs emisie (VnNox) si track GPS.")), self.styles['Normal'])],
-            [Paragraph(f"<b>{remove_diacritics(_('Buget Alocat (EUR)'))}</b>", self.styles['Normal']), Paragraph(f"{budget:,.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Investitia neta in media si operare logistica pentru perioada selectata.")), self.styles['Normal'])],
-            [Paragraph(f"<b>{remove_diacritics(_('eCPM (Cost la 1000)'))}</b>", self.styles['Normal']), Paragraph(f"{ecpm:.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Eficienta costului. Un eCPM sub 4.00 EUR indica un randament superior pietei.")), self.styles['Normal'])],
-            [Paragraph(f"<b>{remove_diacritics(_('Valoare Media (Piata)'))}</b>", self.styles['Normal']), Paragraph(f"{media_value:,.2f} EUR", self.styles['Normal']), Paragraph(remove_diacritics(_("Costul estimat pentru aceeasi audienta in sistemele de achizitie standard.")), self.styles['Normal'])],
-            [Paragraph(f"<b>{remove_diacritics(_('Beneficiu (Added Value)'))}</b>", self.styles['Normal']), Paragraph(f"{added_value_pct:+.1f}%", self.styles['Normal']), Paragraph(remove_diacritics(_("Plus-valoarea generata fata de pretul de piata (ROI campanie).")), self.styles['Normal'])]
+            [Paragraph(f"<b>{remove_diacritics(_('Metrica'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Estimat'))}</b>", self.styles['Normal']), Paragraph(f"<b>{remove_diacritics(_('Livrat (Auditat)'))}</b>", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Ore Efective Difuzare'))}</b>", self.styles['Normal']), Paragraph(f"{total_campaign_hours_base:.1f}h", self.styles['Normal']), Paragraph(f"{real_hours:.1f}h" if real_hours is not None else "-", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Total Impresii (Auditat)'))}</b>", self.styles['Normal']), Paragraph(f"{base_impressions:,}", self.styles['Normal']), Paragraph(f"{total_impressions:,}", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Buget Alocat (EUR)'))}</b>", self.styles['Normal']), Paragraph(f"{budget:,.2f} EUR", self.styles['Normal']), Paragraph(f"{budget:,.2f} EUR", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('eCPK (Cost la 1000)'))}</b>", self.styles['Normal']), Paragraph(f"{(budget/base_impressions)*1000 if base_impressions > 0 else 0:.2f} EUR", self.styles['Normal']), Paragraph(f"{ecpk:.2f} EUR", self.styles['Normal'])],
+            [Paragraph(f"<b>{remove_diacritics(_('Valoare Media (Piata)'))}</b>", self.styles['Normal']), Paragraph(f"{(base_impressions/1000)*4.0:,.2f} EUR", self.styles['Normal']), Paragraph(f"{media_value:,.2f} EUR", self.styles['Normal'])],
+            [Paragraph(f"<b>{added_value_label}</b>", self.styles['Normal']), Paragraph(f"{(((base_impressions/1000)*4.0 - budget)/budget*100) if budget > 0 else 100:+.1f}%", self.styles['Normal']), Paragraph(f"<b>{added_value_pct:+.1f}%</b> ({bonus_pct:+.1f}% Delivery Bonus)", self.styles['Normal'])],
         ]
         
         t_fin = Table(fin_data, colWidths=[2.1*inch, 1.4*inch, 3*inch])
@@ -141,7 +151,7 @@ class DoohReportGenerator(CampaignReportGenerator):
         ]))
         story.append(t_fin)
         story.append(Spacer(1, 12))
-        story.append(Paragraph(remove_diacritics(_("Nota: eCPM calculat pe baza impresiilor totale corectate de factorii de vizibilitate si weather penalty.")), self.styles['Normal']))
+        story.append(Paragraph(remove_diacritics(_("Nota: eCPK calculat pe baza impresiilor totale corectate de factorii de vizibilitate si weather penalty.")), self.styles['Normal']))
         story.append(Spacer(1, 24))
 
         # --- Section 3: Audibility & Proof of Play ---
@@ -209,7 +219,7 @@ class DoohReportGenerator(CampaignReportGenerator):
             'total_impressions_audited': total_impressions,
             'base_impressions': base_impressions,
             'budget': budget,
-            'ecpm': ecpm,
+            'ecpk': ecpk,
             'media_value': media_value,
             'real_hours': real_hours,
             'real_km': real_km
@@ -226,8 +236,8 @@ class DoohReportGenerator(CampaignReportGenerator):
              remove_diacritics(_("Impresiile sunt scalate conform VnNox/GPS. Formula: Auto (Trafic * 1.65 ocupanti * Factor Vizibilitate * SOV) si Pietoni ((Trafic + Biciclisti) * Factor Vizibilitate * SOV). Datele includ mobilitatea zilnica medie de 2.5-3 deplasari/persoana."))),
             ("<b>2. " + remove_diacritics(_("Reach si OTS")) + "</b>", 
              remove_diacritics(_("Reach: 50-65% din Populatia Activa (18-65 ani). OTS (Opportunity To See): 1.5-2.5 expuneri/persoana, optimizat prin stationarea de 10 min/ora in hotspot-uri comerciale."))),
-            ("<b>3. " + remove_diacritics(_("Indicatori ROI (eCPM & Media Value)")) + "</b>", 
-             remove_diacritics(_("eCPM: (Buget / Impresii) x 1000. Valoare Media: Calculata la un CPM de piata de 4.00 EUR. Congestia urbana (Index Numbeo 19-20) creste timpul de expunere si eficienta mesajului."))),
+            ("<b>3. " + remove_diacritics(_("Indicatori ROI (eCPK & Media Value)")) + "</b>", 
+             remove_diacritics(_("eCPK: (Buget / Impresii) x 1000. Valoare Media: Calculata la un CPK de piata de 4.00 EUR. Congestia urbana (Index Numbeo 19-20) creste timpul de expunere si eficienta mesajului."))),
             ("<b>4. " + remove_diacritics(_("Mobilitate si Distante")) + "</b>", 
              remove_diacritics(_("Ore Efective: Ore Totale - Stationare. Viteza medie urbana (15-20 km/h) aliniata cu PMUD. SOV Standard (Spot/Loop) vs Exclusiv (100%). Vizibilitate: 70% (Standard) vs 100% (Exclusiv)."))),
             ("<b>5. " + remove_diacritics(_("Sursa Datelor de Executie")) + "</b>", 
@@ -238,3 +248,20 @@ class DoohReportGenerator(CampaignReportGenerator):
             story.append(Paragraph(remove_diacritics(title), self.styles['Normal']))
             story.append(Paragraph(remove_diacritics(desc), self.styles['Normal']))
             story.append(Spacer(1, 8))
+
+        # Add Acronym Legend
+        story.append(Spacer(1, 12))
+        story.append(Paragraph("<b>" + remove_diacritics(_("Glosar Termeni si Acronime")) + "</b>", self.styles['Heading2']))
+        
+        legend_text = [
+            ("<b>eCPK</b>", _("Effective Cost Per K (Mille) - Costul efectiv pentru 1000 de impresii (anterior denumit eCPM). Litera K (kilo) o inlocuieste pe M (mille) pentru a evita confuzia cu mila (mile).")),
+            ("<b>OTS</b>", _("Opportunity To See - Numarul mediu de ori pe care o persoana din audienta a fost expusa la mesaj.")),
+            ("<b>PMUD</b>", _("Planul de Mobilitate Urbana Durabila - Document strategic care analizeaza mobilitatea la nivelul oraselor din Romania.")),
+            ("<b>SOV</b>", _("Share of Voice - Procentul din timpul total de difuzare pe care il ocupa spotul campaniei in bucla (loop) de pe ecrane.")),
+            ("<b>Reach</b>", _("Audienta neta (acoperire) formata din unici expusi cel putin o data la mesaj, raportat la procentajul populatiei active.")),
+            ("<b>POC</b>", _("Point of Contact / Ecrane - Numarul de fete (ecrane LED) montate pe vehicul. Functionalizeaza ca multiplicator pentru audienta."))
+        ]
+        
+        for t, d in legend_text:
+            story.append(Paragraph(remove_diacritics(f"{t}: {d}"), self.styles['Normal']))
+            story.append(Spacer(1, 4))
