@@ -597,6 +597,25 @@ def list_campaigns():
                     st.success(_("Factor meteo actualizat!"))
                     st.rerun()
 
+                st.divider()
+                # --- Photo Upload for PoP Evidence (Relocated) ---
+                st.subheader("📸 " + _("Galerie Foto Proof of Play"))
+                st.info(_("Incarcati fotografii realizate pe teren pentru a fi incluse automat in Anexa PoP."))
+                
+                uploaded_photos = st.file_uploader(_("Adauga poze (JPG/PNG)"), type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"photo_audit_up_{selected_audit_id}")
+                
+                if uploaded_photos:
+                    photo_dir = os.path.join('data', 'campaign_photos', str(selected_audit_id))
+                    if not os.path.exists(photo_dir):
+                        os.makedirs(photo_dir, exist_ok=True)
+                        
+                    for uploaded_file in uploaded_photos:
+                        file_path = os.path.join(photo_dir, uploaded_file.name)
+                        if not os.path.exists(file_path):
+                            with open(file_path, "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                    st.success(_("Fotografii salvate cu succes!"))
+
 def render_scheduler_ui(city, key_prefix, current_periods, current_schedules, min_date, max_date, default_hours):
     """
     Reusable UI for scheduling periods and hours for a city/vehicle.
@@ -2119,6 +2138,41 @@ def campaign_form(edit_id=None):
             # Fetch existing routes
             routes = existing_data.get('routes', [])
             
+            # --- SESSION STATE INITIALIZATION for Routes ---
+            if f'target_waypoints_{edit_id}' not in st.session_state:
+                st.session_state[f'target_waypoints_{edit_id}'] = []
+            
+            # --- ROUTE LIBRARY & IMPORT ---
+            st.divider()
+            st.write("#### 📚 " + _("Librărie Rute & Import"))
+            lib_col1, lib_col2 = st.columns([2, 1])
+            
+            templates = route_manager.get_route_templates()
+            t_names = {t['id']: t['name'] for t in templates} if templates else {}
+            
+            sel_t = lib_col1.selectbox(_("Alege un șablon salvat..."), options=[""] + list(t_names.keys()), format_func=lambda x: t_names.get(x, _("Selectează Șablon...")))
+            if sel_t:
+                t_data = next(t for t in templates if t['id'] == sel_t)
+                if lib_col2.button(_("Încarcă pe Hartă"), key="btn_import_tpl", width="stretch"):
+                    st.session_state[f'generated_route_{edit_id}'] = t_data.get('geojson_data')
+                    st.session_state[f'target_waypoints_{edit_id}'] = t_data.get('waypoints') or []
+                    st.success(_("Șablon încărcat. Poți ajusta punctele sau salva ruta."))
+                    st.rerun()
+
+            # KML Import (Keep in expander but make it clear)
+            with st.expander("📥 " + _("Import Fișier KML (Google Maps)"), expanded=False):
+                kml_file = st.file_uploader(_("Încarcă fișier .kml"), type=['kml'], key=f"kml_up_{edit_id}")
+                if kml_file:
+                    from src.utils.kml_helper import KMLHelper
+                    kml_text = kml_file.getvalue().decode('utf-8')
+                    kml_geojson = KMLHelper.kml_to_geojson(kml_text)
+                    if kml_geojson:
+                        if st.button(_("Încarcă KML"), key="btn_load_kml"):
+                            st.session_state[f'generated_route_{edit_id}'] = kml_geojson
+                            st.success(_("Traseu KML încărcat!"))
+                            st.rerun()
+                    else:
+                        st.error(_("Fișier KML invalid."))
             if routes:
                 for idx, r in enumerate(routes):
                     with st.expander(f"🛣️ {r['name']} ({r.get('time_start', 'All day')})", expanded=False):
@@ -2126,14 +2180,43 @@ def campaign_form(edit_id=None):
                         r_col1.write(f"**Vehicle:** {vehicle_options.get(r['vehicle_id'], 'Any')}")
                         r_col1.write(f"**Schedule:** {r['date_start'] or 'Start'} → {r['date_end'] or 'End'}")
                         
-                        if r_col2.button("🗑️ " + _("Delete"), key=f"del_route_{r['id']}"):
-                            route_manager.delete_route(r['id'])
+                        btn_col1, btn_col2 = r_col2.columns(2)
+                        
+                        # Edit Action
+                        if btn_col1.button("✏️", key=f"edit_route_{r['id']}", help=_("Editează punctele acestui traseu")):
+                            st.session_state[f'generated_route_{edit_id}'] = r.get('geojson_data')
+                            st.session_state[f'target_waypoints_{edit_id}'] = r.get('waypoints') or []
+                            st.session_state[f'editing_route_id_{edit_id}'] = r['id']
+                            st.session_state[f'edit_route_name_{edit_id}'] = r['name']
+                            st.session_state[f'edit_route_vehicle_{edit_id}'] = r.get('vehicle_id')
+                            st.info(_("Traseu încărcat în editor. Poți modifica punctele sau setările mai jos."))
                             st.rerun()
+                        
+                        # Delete Action
+                        if btn_col2.button("🗑️", key=f"del_route_{r['id']}", help=_("Șterge definitiv")):
+                            route_manager.delete_route(r['id'])
+                            # Clear editor if we are deleting the one being edited
+                            if st.session_state.get(f'editing_route_id_{edit_id}') == r['id']:
+                                del st.session_state[f'editing_route_id_{edit_id}']
+                            st.rerun()
+                        
+                        # Export KML
+                        if r.get('geojson_data'):
+                            from src.utils.kml_helper import KMLHelper
+                            kml_out = KMLHelper.geojson_to_kml(r['geojson_data'], r['name'])
+                            st.download_button(
+                                label="📥 " + _("Download KML"),
+                                data=kml_out,
+                                file_name=f"{r['name'].replace(' ', '_')}.kml",
+                                mime="application/vnd.google-earth.kml+xml",
+                                key=f"dl_kml_{r['id']}",
+                                width="stretch"
+                            )
             
             # Add New Route Form
             with st.expander("➕ " + _("Add New Campaign Route")):
                 # Map for drawing/viewing
-                st.write(_("Draw the campaign route on the map below:"))
+                st.write(_("Draw a route manually or click points on the map to generate an automatic route:"))
                 
                 # Center on first target city if possible
                 m_lat, m_lon = 44.4268, 26.1025 # Bucharest default
@@ -2153,26 +2236,161 @@ def campaign_form(edit_id=None):
                         'rectangle': False,
                         'polygon': False,
                         'circle': False,
-                        'marker': True,
+                        'marker': True, # Allow markers for waypoints
                         'circlemarker': False,
                     },
                     edit_options={'remove': True}
                 )
                 draw.add_to(m)
                 
+                # INITIALIZE markers from session state (persistence)
+                persisted_pts = st.session_state.get(f'target_waypoints_{edit_id}', [])
+                for i, p in enumerate(persisted_pts):
+                    folium.Marker(location=p, popup=f"PT {i+1}", icon=folium.Icon(color='red', icon='info-sign')).add_to(m)
+
                 # Display existing routes on this map too
                 for r in routes:
                     if r.get('geojson_data'):
                         try:
-                            folium.GeoJson(r['geojson_data'], name=r['name']).add_to(m)
+                            folium.GeoJson(r['geojson_data'], name=r['name'], style_function=lambda x: {'color': 'blue', 'weight': 4, 'opacity': 0.6}).add_to(m)
                         except:
                             pass
+                
+                # PREVIEW generated route if exists in session state
+                preview_route = st.session_state.get(f'generated_route_{edit_id}')
+                if preview_route:
+                    try:
+                        folium.GeoJson(preview_route, name="Preview Generated Route", style_function=lambda x: {'color': 'red', 'weight': 6, 'opacity': 0.9}).add_to(m)
+                    except:
+                        pass
 
-                output = st_folium(m, height=400, width=700, key="campaign_route_map")
+                output = st_folium(m, height=450, width="100%", key="campaign_route_map")
+                
+                # Manage Waypoints and Route Generation
+                col_rt1, col_rt2 = st.columns([2, 1])
+                
+                with col_rt1:
+                    if output and output.get('all_drawings'):
+                        # Find all 'Point' drawings to use as waypoints
+                        drawing_pts = []
+                        for drawing in output['all_drawings']:
+                            if drawing.get('geometry', {}).get('type') == 'Point':
+                                coords = drawing['geometry']['coordinates']
+                                drawing_pts.append([coords[1], coords[0]]) # lat, lon
+                        
+                        # MERGE with session state to prevent disappearing points
+                        if drawing_pts:
+                            current_pts = st.session_state.get(f'target_waypoints_{edit_id}', [])
+                            added = False
+                            for pt in drawing_pts:
+                                if pt not in current_pts:
+                                    current_pts.append(pt)
+                                    added = True
+                            if added:
+                                st.session_state[f'target_waypoints_{edit_id}'] = current_pts
+                                st.rerun() # Refresh to show them as static markers
+                    
+                    clicked_points = st.session_state.get(f'target_waypoints_{edit_id}', [])
+                    st.info(f"📍 {len(clicked_points)} " + _("puncte de control selectate."))
+                    
+                    # --- INTERACTIVE WAYPOINT LIST ---
+                    st.write("##### ⚙️ " + _("Gestiune Puncte (Ordonare / Ștergere)"))
+                    if clicked_points:
+                        for i, p in enumerate(clicked_points):
+                            w_col1, w_col2, w_col3, w_col4 = st.columns([3, 1, 1, 1])
+                            w_col1.write(f"**#{i+1}**: `{p[0]:.5f}, {p[1]:.5f}`")
+                            
+                            # Move Up
+                            if i > 0:
+                                if w_col2.button("⬆️", key=f"up_{edit_id}_{i}", help=_("Mută mai sus")):
+                                    clicked_points[i], clicked_points[i-1] = clicked_points[i-1], clicked_points[i]
+                                    st.session_state[f'target_waypoints_{edit_id}'] = clicked_points
+                                    st.rerun()
+                            
+                            # Move Down
+                            if i < len(clicked_points) - 1:
+                                if w_col3.button("⬇️", key=f"down_{edit_id}_{i}", help=_("Mută mai jos")):
+                                    clicked_points[i], clicked_points[i+1] = clicked_points[i+1], clicked_points[i]
+                                    st.session_state[f'target_waypoints_{edit_id}'] = clicked_points
+                                    st.rerun()
+                            
+                            # Remove
+                            if w_col4.button("❌", key=f"rm_{edit_id}_{i}", help=_("Șterge acest punct")):
+                                clicked_points.pop(i)
+                                st.session_state[f'target_waypoints_{edit_id}'] = clicked_points
+                                if f'generated_route_{edit_id}' in st.session_state:
+                                    del st.session_state[f'generated_route_{edit_id}']
+                                st.rerun()
+                    else:
+                        st.write(_("Niciun punct selectat încă."))
+
+                    st.write("---")
+                    route_mode = st.radio(
+                        _("Tip Traseu"),
+                        options=["direct", "loop", "full_return"],
+                        format_func=lambda x: {
+                            "direct": _("Direct (A->B->C)"),
+                            "loop": _("Buclă (A->B->C->A)"),
+                            "full_return": _("Tur-Retur Complet (A->B->C->B->A)")
+                        }.get(x),
+                        horizontal=True
+                    )
+                    
+                    if len(clicked_points) >= 2:
+                        if st.button("🚀 " + _("Generează Traseu Automat (OSRM)"), width="stretch", type="primary"):
+                            from src.utils.routing_helper import RoutingHelper
+                            with st.spinner(_("Calculare traseu prin OSRM...")):
+                                pts_to_send = clicked_points.copy()
+                                if route_mode == "loop":
+                                    pts_to_send.append(clicked_points[0])
+                                elif route_mode == "full_return":
+                                    # Append path in reverse, excluding the absolute target C which is already at the end
+                                    rev_pts = clicked_points[:-1][::-1]
+                                    pts_to_send.extend(rev_pts)
+                                    
+                                result = RoutingHelper.get_route_osrm(pts_to_send)
+                                if result:
+                                    st.session_state[f'generated_route_{edit_id}'] = result
+                                    st.success(_("Traseu generat cu succes!"))
+                                    st.rerun()
+                                else:
+                                    st.error(_("Eroare la generarea traseului. Reîncearcă."))
+                
+                with col_rt2:
+                    st.write(" ") # Padding
+                    if st.button("🗑️ " + _("Șterge Toate Punctele"), width="stretch"):
+                        st.session_state[f'target_waypoints_{edit_id}'] = []
+                        if f'generated_route_{edit_id}' in st.session_state:
+                            del st.session_state[f'generated_route_{edit_id}']
+                        st.rerun()
+                    
+                    if not clicked_points:
+                        st.warning(_("Click pe hartă pentru a adăuga puncte (Marker)."))
+                    else:
+                        st.success(_("Puncte pregătite pentru generare."))
+                
+                # --- EDITING STATUS HEADER ---
+                is_editing = st.session_state.get(f'editing_route_id_{edit_id}')
+                if is_editing:
+                    st.warning(f"📝 **Editare Traseu: {st.session_state.get(f'edit_route_name_{edit_id}', '')}**")
+                    if st.button("❌ " + _("Anulează Editarea"), key="cancel_edit_route"):
+                        del st.session_state[f'editing_route_id_{edit_id}']
+                        st.session_state[f'target_waypoints_{edit_id}'] = []
+                        if f'generated_route_{edit_id}' in st.session_state:
+                            del st.session_state[f'generated_route_{edit_id}']
+                        st.rerun()
+
+                st.divider()
+                st.write("#### 💾 " + (_("Actualizare Traseu") if is_editing else _("Salvare Traseu Nou")))
                 
                 with st.form("new_route_form"):
-                    nr_name = st.text_input(_("Route Name"), value=f"Route {len(routes) + 1}")
-                    nr_veh = st.selectbox(_("Assigned Vehicle"), options=[""] + list(vehicle_options.keys()), format_func=lambda x: vehicle_options.get(x, _("Any Vehicle")))
+                    default_name = st.session_state.get(f'edit_route_name_{edit_id}', f"Route {len(routes) + 1}")
+                    nr_name = st.text_input(_("Route Name"), value=default_name)
+                    
+                    default_veh = st.session_state.get(f'edit_route_vehicle_{edit_id}', "")
+                    nr_veh = st.selectbox(_("Assigned Vehicle"), options=[""] + list(vehicle_options.keys()), 
+                                          index=list(vehicle_options.keys()).index(default_veh) + 1 if default_veh in vehicle_options else 0,
+                                          format_func=lambda x: vehicle_options.get(x, _("Any Vehicle")))
                     
                     nr_col1, nr_col2 = st.columns(2)
                     nr_start = nr_col1.date_input(_("Allocation Start"), value=start_date)
@@ -2182,28 +2400,55 @@ def campaign_form(edit_id=None):
                     nr_t_start = nr_t_col1.text_input(_("Time Start"), value="08:00", help="HH:MM")
                     nr_t_end = nr_t_col2.text_input(_("Time End"), value="20:00", help="HH:MM")
                     
-                    if st.form_submit_button(_("Save Route")):
-                        # Get GeoJSON from map output
-                        geojson = None
-                        if output and 'all_drawings' in output and output['all_drawings']:
-                            geojson = output['all_drawings'][-1] # Take the last drawing
+                    is_tpl_chk = st.checkbox(_("Salvează ca Șablon (Global)"), value=False, help=_("Ruta va fi disponibilă în Librărie pentru orice altă campanie."))
+
+                    if st.form_submit_button(_("Save Route"), width="stretch"):
+                        # Priority: 1. Generated OSRM Route, 2. Manual Polyline Drawing
+                        geojson = st.session_state.get(f'generated_route_{edit_id}')
+                        
+                        if not geojson and output and 'all_drawings' in output and output['all_drawings']:
+                            # Find the last polyline if no generated route
+                            for dr in reversed(output['all_drawings']):
+                                if dr.get('geometry', {}).get('type') == 'LineString':
+                                    geojson = dr
+                                    break
                             
                         if not geojson:
-                            st.error(_("Please draw a route on the map first."))
+                            st.error(_("Please generate a route or draw a manual path first."))
+                        elif not nr_name:
+                            st.error(_("Numele rutei este obligatoriu."))
                         else:
                             route_data = {
-                                'campaign_id': edit_id,
+                                'campaign_id': edit_id if not is_tpl_chk else None,
                                 'name': nr_name,
                                 'geojson_data': geojson,
+                                'waypoints': st.session_state.get(f'target_waypoints_{edit_id}'),
+                                'is_template': is_tpl_chk,
                                 'vehicle_id': nr_veh if nr_veh else None,
                                 'date_start': nr_start,
                                 'date_end': nr_end,
                                 'time_start': nr_t_start,
                                 'time_end': nr_t_end
                             }
-                            route_manager.add_route(route_data)
-                            st.success(_("Route added!"))
-                            st.rerun()
+                            
+                            if is_editing:
+                                success = route_manager.update_route(is_editing, route_data)
+                            else:
+                                success = route_manager.add_route(route_data)
+                                
+                            if success:
+                                # Cleanup session state ONLY on success
+                                if f'generated_route_{edit_id}' in st.session_state:
+                                    del st.session_state[f'generated_route_{edit_id}']
+                                if f'target_waypoints_{edit_id}' in st.session_state:
+                                    st.session_state[f'target_waypoints_{edit_id}'] = []
+                                if f'editing_route_id_{edit_id}' in st.session_state:
+                                    del st.session_state[f'editing_route_id_{edit_id}']
+                                    
+                                st.success(_("Traseu salvat cu succes!"))
+                                st.rerun()
+                            else:
+                                st.error(_("Eroare la salvarea în baza de date. Verifică log-urile."))
 
         # Section 6: DOOH
         st.subheader("6. " + _("DOOH Details"))
@@ -2215,8 +2460,8 @@ def campaign_form(edit_id=None):
 
         # Buttons (Outside a form they are regular buttons)
         col_btn1, col_btn2, empty_col = st.columns([1, 1, 2])
-        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", use_container_width=True)
-        view_reports = col_btn2.button("📈 " + _("Save & Manage Reports"), use_container_width=True)
+        submitted = col_btn1.button("💾 " + _("Save Campaign"), type="primary", width="stretch")
+        view_reports = col_btn2.button("📈 " + _("Save & Manage Reports"), width="stretch")
 
         if submitted or view_reports:
             if not client_name or not campaign_name:
@@ -2349,7 +2594,7 @@ def render_reporting_interface(campaign_id):
         st.markdown(f"### 📋 " + _("Standard Campaign Report"))
         st.info(_("Contains basic metrics like impressions, reach, and OTS based on city data."))
         
-        if st.button("🚀 " + _("Generate New Standard Report"), key="gen_std", type="primary", use_container_width=True):
+        if st.button("🚀 " + _("Generate New Standard Report"), key="gen_std", type="primary", width="stretch"):
             with st.spinner(_("Generating...")):
                 gen = CampaignReportGenerator(storage)
                 path = gen.generate_campaign_report(c)
@@ -2365,7 +2610,7 @@ def render_reporting_interface(campaign_id):
                     st.download_button(
                         label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
                         data=f, file_name=latest['file_name'],
-                        mime="application/pdf", key="dl_std_latest", use_container_width=True
+                        mime="application/pdf", key="dl_std_latest", width="stretch"
                     )
             else:
                 st.warning(_("PDF file not found on disk."))
@@ -2377,9 +2622,9 @@ def render_reporting_interface(campaign_id):
         
         if not latest_standard:
             st.warning("⚠️ " + _("Sequential Logic: You must generate a **Standard Report** first to establish baseline impressions for the DOOH Report."))
-            st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin_locked", disabled=True, use_container_width=True)
+            st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin_locked", disabled=True, width="stretch")
         else:
-            if st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin", type="primary", use_container_width=True):
+            if st.button("🚀 " + _("Generate New DOOH Report"), key="gen_fin", type="primary", width="stretch"):
                 with st.spinner(_("Generating...")):
                     gen = DoohReportGenerator(storage)
                     path = gen.generate_dooh_report(c)
@@ -2395,7 +2640,7 @@ def render_reporting_interface(campaign_id):
                     st.download_button(
                         label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
                         data=f, file_name=latest['file_name'],
-                        mime="application/pdf", key="dl_fin_latest", use_container_width=True
+                        mime="application/pdf", key="dl_fin_latest", width="stretch"
                     )
             else:
                 st.warning(_("PDF file not found on disk."))
@@ -2409,7 +2654,7 @@ def render_reporting_interface(campaign_id):
         incl_map   = st.checkbox(remove_diacritics(_("🗺️ Include harta traseu GPS")),   value=True, key="pop_chk_map")
         incl_photos = st.checkbox(remove_diacritics(_("📸 Include Galerie Foto PoP")), value=True, key="pop_chk_photos")
         
-        if st.button("🚀 " + remove_diacritics(_("Generează Anexă PoP")), key="gen_pop", type="primary", use_container_width=True):
+        if st.button("🚀 " + remove_diacritics(_("Generează Anexă PoP")), key="gen_pop", type="primary", width="stretch"):
             with st.spinner(remove_diacritics(_("Generare Anexă..."))):
                 try:
                     from src.reporting.pop_annex_report_generator import PopAnnexReportGenerator
@@ -2431,32 +2676,16 @@ def render_reporting_interface(campaign_id):
                     st.download_button(
                         label="📥 " + _("Download Latest") + f" ({latest['created_at'][:10]})",
                         data=f, file_name=latest['file_name'],
-                        mime="application/pdf", key="dl_pop_latest", use_container_width=True
+                        mime="application/pdf", key="dl_pop_latest", width="stretch"
                     )
             else:
                 st.warning(_("PDF file not found on disk."))
 
     st.divider()
 
-    # --- Photo Upload for PoP Evidence ---
-    st.subheader("📸 " + _("Galerie Foto Proof of Play"))
-    st.info(_("Incarcati fotografii realizate pe teren pentru a fi incluse automat in Anexa PoP."))
-    
-    uploaded_photos = st.file_uploader(_("Adauga poze (JPG/PNG)"), type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"photo_uploader_{campaign_id}")
-    
-    if uploaded_photos:
-        photo_dir = os.path.join('data', 'campaign_photos', str(campaign_id))
-        if not os.path.exists(photo_dir):
-            os.makedirs(photo_dir, exist_ok=True)
-            
-        for uploaded_file in uploaded_photos:
-            file_path = os.path.join(photo_dir, uploaded_file.name)
-            if not os.path.exists(file_path):
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-        st.success(_("Fotografii salvate cu succes!"))
-
     st.divider()
+
+    # --- 3. Full History with CRUD ---
 
     # --- 3. Full History with CRUD ---
     if history:
@@ -2485,12 +2714,12 @@ def render_reporting_interface(campaign_id):
                         mime="application/pdf",
                         key=f"dl_hist_{h['id']}",
                         help=_("Descarca raport"),
-                        use_container_width=True
+                        width="stretch"
                     )
             else:
                 hc3.caption(_("Fisier lipsa"))
             
-            if hc4.button("🗑️", key=f"del_rep_{h['id']}", help=_("Sterge raport"), use_container_width=True):
+            if hc4.button("🗑️", key=f"del_rep_{h['id']}", help=_("Sterge raport"), width="stretch"):
                 rep_storage.delete_report(h['id'])
                 if file_exists:
                     try:

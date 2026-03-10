@@ -465,7 +465,27 @@
             "osm_road_count": 0
         },
         "current": {
-            "ref": "2025-Q4"
+            "ref": "2026-Q1"
+        },
+        "2026-Q1": {
+            "population": 10043,
+            "county": "Ilfov",
+            "active_population_pct": 62,
+            "daily_traffic_total": 5021,
+            "daily_pedestrian_total": 6025,
+            "modal_split": {
+                "auto": 35,
+                "walking": 27,
+                "cycling": 4,
+                "public_transport": 34
+            },
+            "avg_commute_distance_km": 8,
+            "description": "City with population 10,043",
+            "source": "Public",
+            "last_updated": "2026-03-09T21:58:30.468089",
+            "update_preference": "public",
+            "osm_poi_count": 0,
+            "osm_road_count": 0
         }
     },
     "Targoviste": {
@@ -747,7 +767,7 @@
             "avg_commute_distance_km": 8,
             "description": "City with population 10,043",
             "source": "User Input",
-            "last_updated": "2026-03-09T14:09:12.725190",
+            "last_updated": "2026-03-09T21:48:56.795296",
             "update_preference": "manual"
         },
         "current": {

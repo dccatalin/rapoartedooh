@@ -121,6 +121,44 @@ def init_db():
         if "audited_data" not in columns:
             cursor.execute("ALTER TABLE campaigns ADD COLUMN audited_data JSON DEFAULT '{}'")
         
+        # Check campaign_routes table for NULLability of campaign_id
+        cursor.execute("PRAGMA table_info(campaign_routes)")
+        ti = cursor.fetchall()
+        columns = [row[1] for row in ti]
+        
+        # Check if campaign_id is NOT NULL (index 3 in table_info is 'notnull')
+        cid_info = next((r for r in ti if r[1] == 'campaign_id'), None)
+        is_not_null = cid_info and cid_info[3] == 1
+        
+        if is_not_null:
+            print("Auto-migrating: campaign_routes.campaign_id is NOT NULL, rebuilding table to allow NULLs")
+            try:
+                # 1. Rename existing table
+                cursor.execute("ALTER TABLE campaign_routes RENAME TO campaign_routes_old")
+                
+                # 2. Create the new table via SQLAlchemy Base (it now has nullable=True in the model)
+                # We need to commit the rename first so create_all sees the table is missing
+                conn.commit()
+                Base.metadata.create_all(bind=engine)
+                
+                # Re-open connection or just use it
+                cursor.execute("INSERT INTO campaign_routes (id, campaign_id, name, geojson_data, waypoints, is_template, vehicle_id, date_start, date_end, time_start, time_end, created_at, last_modified) "
+                               "SELECT id, campaign_id, name, geojson_data, waypoints, is_template, vehicle_id, date_start, date_end, time_start, time_end, created_at, last_modified FROM campaign_routes_old")
+                
+                cursor.execute("DROP TABLE campaign_routes_old")
+                print("Migration successful: campaign_routes rebuilt.")
+            except Exception as migrate_err:
+                print(f"Migration error during rebuild: {migrate_err}")
+                # Try to rollback rename if possible
+                try: cursor.execute("ALTER TABLE campaign_routes_old RENAME TO campaign_routes")
+                except: pass
+        else:
+            # Standard additive migrations if not rebuilding
+            if "waypoints" not in columns:
+                cursor.execute("ALTER TABLE campaign_routes ADD COLUMN waypoints JSON")
+            if "is_template" not in columns:
+                cursor.execute("ALTER TABLE campaign_routes ADD COLUMN is_template BOOLEAN DEFAULT 0")
+        
         conn.commit()
         conn.close()
     except Exception as e:

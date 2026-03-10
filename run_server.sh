@@ -12,4 +12,4 @@ fi
 # 3. Pornire Streamlit
 # --server.port 8501: Portul standard Streamlit
 # --server.address 0.0.0.0: Permite accesul din rețea
-streamlit run web_app/Home.py --server.port 8501 --server.address 0.0.0.0
+streamlit run web_app/Home.py --server.port 8501 --server.address 0.0.0.0 --server.enableCORS false --server.enableXsrfProtection false

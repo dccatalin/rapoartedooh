@@ -585,3 +585,49 @@ class CityDataManager:
             return False
         finally:
             db.close()
+    def delete_traffic_location_by_name(self, city_name, location_name):
+        """Delete a traffic location by its name within a city"""
+        db = SessionLocal()
+        try:
+            loc = db.query(TrafficLocation).filter(
+                TrafficLocation.city_name.ilike(city_name),
+                TrafficLocation.name == location_name
+            ).first()
+            if loc:
+                db.delete(loc)
+                db.commit()
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting traffic location by name: {e}")
+            db.rollback()
+            return False
+        finally:
+            db.close()
+
+    def batch_add_traffic_locations(self, city_name, locations_list):
+        """Add multiple traffic locations at once"""
+        db = SessionLocal()
+        added_count = 0
+        try:
+            for data in locations_list:
+                new_loc = TrafficLocation(
+                    name=data.get('name'),
+                    city_name=city_name,
+                    latitude=float(data.get('latitude', 0.0)),
+                    longitude=float(data.get('longitude', 0.0)),
+                    daily_traffic=int(data.get('daily_traffic', 0)),
+                    pedestrian_traffic=int(data.get('pedestrian_traffic', 0)),
+                    source=data.get('source', 'BRAT'),
+                    notes=data.get('notes', '')
+                )
+                db.add(new_loc)
+                added_count += 1
+            db.commit()
+            return added_count
+        except Exception as e:
+            print(f"Error batch adding traffic locations: {e}")
+            db.rollback()
+            return 0
+        finally:
+            db.close()

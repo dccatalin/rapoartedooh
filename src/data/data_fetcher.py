@@ -96,11 +96,9 @@ class DataFetcher:
 
     def _calculate_satellite_multiplier(self, city_name):
         """Simulate discovering satellite towns within 20km that commute to the main city."""
-        # For a truly live API, this would query OSM for nearby town populations.
-        # As a sophisticated fallback, if it's a known major hub, we apply a PMUD-like multiplier.
         major_hubs = {
-            'București': 1.65, # Huge metro commute (Ilfov)
-            'Cluj-Napoca': 1.45, # Floresti, Apahida, etc.
+            'București': 1.65, 
+            'Cluj-Napoca': 1.45, 
             'Timișoara': 1.40,
             'Iași': 1.35,
             'Brașov': 1.30,
@@ -109,12 +107,10 @@ class DataFetcher:
         for hub, mult in major_hubs.items():
             if hub.lower() in city_name.lower():
                 return mult
-        return 1.10 # Base 10% commute from surrounding villages
+        return 1.10 
         
     def _fetch_pmud_data(self, city_name):
         """Mock fetching from Planul de Mobilitate Urbana Durabila (PMUD)"""
-        # A real implementation would scrape or parse PMUD PDFs for the specific city.
-        # Return intelligent defaults based on city size/type.
         if "bucure" in city_name.lower() or "cluj" in city_name.lower():
             return {
                 'modal_split': {'auto': 38, 'public_transport': 35, 'walking': 24, 'cycling': 3}
@@ -124,45 +120,32 @@ class DataFetcher:
     def _fetch_from_wikipedia(self, city_name):
         """Scrape population from Wikipedia infobox"""
         try:
-            # Construct URL (Romanian Wikipedia)
             url = f"https://ro.wikipedia.org/wiki/{city_name}"
             response = requests.get(url, headers=self.headers, timeout=5)
             
             if response.status_code != 200:
-                # Try with "Municipiul" prefix if simple name fails
                 url = f"https://ro.wikipedia.org/wiki/Municipiul_{city_name}"
                 response = requests.get(url, headers=self.headers, timeout=5)
                 if response.status_code != 200:
                     return None
 
             soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Find infobox
             infobox = soup.find('table', {'class': 'infobox'})
             if not infobox:
                 return None
                 
             data = {}
-            
-            # Extract Population
-            # Look for rows containing "Populație"
             for row in infobox.find_all('tr'):
                 header = row.find('th')
                 if header and 'Populație' in header.text:
-                    # The value might be in this row or next rows
-                    # Usually in Wikipedia infoboxes, it's complex. 
-                    # Let's look for the cell with the number
                     cell = row.find('td')
                     if not cell:
-                        # Check next row
                         next_row = row.find_next_sibling('tr')
                         if next_row:
                             cell = next_row.find('td')
                     
                     if cell:
                         text = cell.text.strip()
-                        # Extract number (remove references like [1], spaces, etc)
-                        # Regex to find the first large number
                         match = re.search(r'(\d[\d\s\.]+\d)', text)
                         if match:
                             num_str = match.group(1).replace('.', '').replace(' ', '').replace('\xa0', '')
@@ -171,36 +154,25 @@ class DataFetcher:
                             except ValueError:
                                 pass
                     break
-            
             return data
-            
         except Exception as e:
             print(f"Error fetching from Wikipedia: {e}")
             return None
 
     def _fetch_from_ins(self, city_name):
-        """Fetch population from INS (Institutul National de Statistica)"""
-        try:
-            # INS Tempo Online API endpoint
-            # Note: This is a simplified example. Real INS API may require different parameters
-            url = "http://statistici.insse.ro:8077/tempo-online/"
-            
-            # For now, return None as INS API requires complex authentication
-            # This is a placeholder for future implementation
-            print(f"INS API not fully implemented yet for {city_name}")
-            return None
-            
-        except Exception as e:
-            print(f"Error fetching from INS: {e}")
-            return None
+        """Fetch population from INS"""
+        print(f"INS API not fully implemented yet for {city_name}")
+        return None
+    
+    def _fetch_from_brat(self, city_name):
+        """Fetch data from BRAT"""
+        print(f"BRAT API integration not yet available for {city_name}")
+        return None
     
     def _fetch_from_osm(self, city_name):
         """Fetch POI and road data from OpenStreetMap Overpass API"""
         try:
-            # Overpass API endpoint
             url = "https://overpass-api.de/api/interpreter"
-            
-            # Query for POI count and road network in city
             query = f"""
             [out:json][timeout:10];
             area["name"="{city_name}"]["admin_level"~"^(6|8)$"]->.city;
@@ -210,45 +182,28 @@ class DataFetcher:
             );
             out count;
             """
-            
             response = requests.post(url, data={'data': query}, timeout=10)
-            
             if response.status_code == 200:
                 result = response.json()
-                # Extract counts from tags
                 data = {}
-                
-                # This is simplified - real implementation would parse the response better
                 if 'elements' in result:
                     data['osm_poi_count'] = len([e for e in result['elements'] if e.get('type') == 'node'])
                     data['osm_road_count'] = len([e for e in result['elements'] if e.get('type') == 'way'])
-                
                 return data
-            
-            # Rate limiting: wait 0.5s between requests
             time.sleep(0.5)
             return None
-            
         except Exception as e:
             print(f"Error fetching from OSM: {e}")
             return None
     
     def _estimate_traffic(self, data):
-        """Estimate traffic based on population and other factors"""
+        """Estimate traffic based on population"""
         population = data.get('population', 0)
         if population == 0:
             return {}
-        
-        # Simple estimation formulas (can be refined)
-        # Assume 30-40% of population generates daily traffic
         daily_traffic_total = int(population * 0.35)
-        
-        # Pedestrian traffic: ~25% of population
         daily_pedestrian_total = int(population * 0.25)
-        
-        # Active population percentage (working age)
         active_population_pct = 60
-        
         return {
             'daily_traffic_total': daily_traffic_total,
             'daily_pedestrian_total': daily_pedestrian_total,
@@ -256,27 +211,20 @@ class DataFetcher:
         }
     
     def _get_cached_data(self, city_name):
-        """Get cached data if available and not expired"""
+        """Get cached data"""
         try:
             if not os.path.exists(self.cache_path):
                 return None
-            
             with open(self.cache_path, 'r', encoding='utf-8') as f:
                 cache = json.load(f)
-            
             if city_name not in cache:
                 return None
-            
             cached_entry = cache[city_name]
             timestamp = datetime.datetime.fromisoformat(cached_entry['timestamp'])
-            
-            # Check if expired
             age_days = (datetime.datetime.now() - timestamp).days
             if age_days > self.cache_expiry_days:
                 return None
-            
             return cached_entry['data']
-            
         except Exception as e:
             print(f"Error reading cache: {e}")
             return None
@@ -288,37 +236,11 @@ class DataFetcher:
             if os.path.exists(self.cache_path):
                 with open(self.cache_path, 'r', encoding='utf-8') as f:
                     cache = json.load(f)
-            
             cache[city_name] = {
                 'data': data,
                 'timestamp': datetime.datetime.now().isoformat()
             }
-            
             with open(self.cache_path, 'w', encoding='utf-8') as f:
                 json.dump(cache, f, indent=4, ensure_ascii=False)
-                
         except Exception as e:
             print(f"Error saving to cache: {e}")
-    
-    def fetch_from_ins(self, city_name):
-        """
-        Fetch data from INS (Institutul National de Statistica) API.
-        PLACEHOLDER: To be implemented when INS API becomes available.
-        Returns None for now.
-        """
-        print(f"INS API integration not yet available for {city_name}")
-        # Future implementation will call INS API here
-        # Expected return format: dict with population, demographics, etc.
-        return None
-    
-    def fetch_from_brat(self, city_name):
-        """
-        Fetch data from BRAT (Romanian Audience Measurement) API.
-        PLACEHOLDER: To be implemented when BRAT API becomes available.
-        Returns None for now.
-        """
-        print(f"BRAT API integration not yet available for {city_name}")
-        # Future implementation will call BRAT API here
-        # Expected return format: dict with traffic, audience data, etc.
-        return None
-

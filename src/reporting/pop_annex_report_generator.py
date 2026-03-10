@@ -266,9 +266,6 @@ class PopAnnexReportGenerator(ReportGenerator):
             story.append(Spacer(1, 12))
             story.append(t_gps)
 
-                self.styles['Normal']
-            ))
-
         # --- Photo Gallery Section ---
         if include_photos:
             self._embed_photo_gallery(story, data)

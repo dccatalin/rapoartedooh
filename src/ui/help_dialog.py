@@ -91,9 +91,11 @@ class HelpDialog(QDialog):
                 "Calcul ROI": "<h2>ROI (Return on Investment)</h2><p>ROI = ((Venit Estimat - Cost Total) / Cost Total) * 100</p>",
                 "CPM": "<h2>CPM (Cost Per Mille)</h2><p>Costul pentru 1000 de impresii. <i>Formula:</i> (Cost Total / Impresii Totale) * 1000</p>"
             },
-            "Route Optimization": {
-                "Traffic Score": "<h2>Traffic Score</h2><p>A score from 0-100 based on population, traffic estimates, and POI density.</p>",
-                "Spatial Logic": "<h2>Spatial Logic</h2><p>The optimizer uses a 'Nearest Neighbor' algorithm to suggest the most efficient route order.</p>"
+            "Route Management": {
+                "Waypoint Management": "<h2>Waypoint Management</h2><p>Punetele de control (markers) rămân pe hartă după generare, permițând ajustarea traseului fără a lua totul de la zero.</p>",
+                "Route Library": "<h2>Route Library (Șabloane)</h2><p>Orice traseu poate fi salvat ca Șablon global și refolosit în orice altă campanie.</p>",
+                "KML Import/Export": "<h2>Import/Export KML</h2><p>Compatibilitate cu Google Maps prin fișiere .kml.</p>",
+                "Spatial Logic": "<h2>Spatial Logic</h2><p>The optimizer uses a 'Nearest Neighbor' algorithm and OSRM for fastest road paths Suggesting the most efficient route order.</p>"
             }
         }
         

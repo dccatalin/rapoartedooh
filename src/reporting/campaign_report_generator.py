@@ -259,12 +259,15 @@ class CampaignReportGenerator(ReportGenerator):
                     # Filter routes for today
                     routes_today = [r for r in active_routes if self._is_route_active(r, current_date)]
                     if routes_today:
-                        # Find intersections
+                        # Find intersections with audited locations
                         intersected_locs = self._find_intersected_locations(routes_today, city_locations)
                         if intersected_locs:
-                            # Use average of audited locations instead of city wide average
-                            h_traffic = sum(l.daily_traffic for l in intersected_locs) / len(intersected_locs) / 24
-                            h_pedestrian = sum(l.pedestrian_traffic for l in intersected_locs) / len(intersected_locs) / 24
+                            # BLENDING LOGIC: (City Average + Audited Locations Average) / 2
+                            audited_traffic_avg = sum(l.daily_traffic for l in intersected_locs) / len(intersected_locs) / 24
+                            audited_pedestrian_avg = sum(l.pedestrian_traffic for l in intersected_locs) / len(intersected_locs) / 24
+                            
+                            h_traffic = (hourly_traffic_city_avg + audited_traffic_avg) / 2
+                            h_pedestrian = (hourly_pedestrian_city_avg + audited_pedestrian_avg) / 2
 
                 t_mult, p_mult, event_name = self.city_manager.get_event_multipliers(city_name, current_date)
                 if event_name and event_name not in events_encountered: events_encountered.append(event_name)

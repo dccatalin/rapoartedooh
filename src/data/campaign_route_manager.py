@@ -28,13 +28,15 @@ class CampaignRouteManager:
             db.close()
 
     def add_route(self, data: Dict[str, Any]) -> Optional[str]:
-        """Add a new route to a campaign"""
+        """Add a new route to a campaign or as a template"""
         db = SessionLocal()
         try:
             new_route = CampaignRoute(
                 campaign_id=data.get('campaign_id'),
                 name=data.get('name', 'Unnamed Route'),
                 geojson_data=data.get('geojson_data'),
+                waypoints=data.get('waypoints'),
+                is_template=data.get('is_template', False),
                 vehicle_id=data.get('vehicle_id'),
                 date_start=data.get('date_start'),
                 date_end=data.get('date_end'),
@@ -62,6 +64,8 @@ class CampaignRouteManager:
             
             if 'name' in data: route.name = data['name']
             if 'geojson_data' in data: route.geojson_data = data['geojson_data']
+            if 'waypoints' in data: route.waypoints = data['waypoints']
+            if 'is_template' in data: route.is_template = data['is_template']
             if 'vehicle_id' in data: route.vehicle_id = data['vehicle_id']
             if 'date_start' in data: route.date_start = data['date_start']
             if 'date_end' in data: route.date_end = data['date_end']
@@ -94,6 +98,15 @@ class CampaignRouteManager:
         finally:
             db.close()
 
+    def get_route_templates(self) -> List[Dict[str, Any]]:
+        """Fetch all routes marked as templates (global library)"""
+        db = SessionLocal()
+        try:
+            routes = db.query(CampaignRoute).filter(CampaignRoute.is_template == True).all()
+            return [self._to_dict(r) for r in routes]
+        finally:
+            db.close()
+
     def _to_dict(self, route: CampaignRoute) -> Dict[str, Any]:
         """Convert SQLAlchemy object to dictionary"""
         return {
@@ -101,6 +114,8 @@ class CampaignRouteManager:
             'campaign_id': route.campaign_id,
             'name': route.name,
             'geojson_data': route.geojson_data,
+            'waypoints': route.waypoints,
+            'is_template': route.is_template,
             'vehicle_id': route.vehicle_id,
             'date_start': route.date_start.isoformat() if route.date_start else None,
             'date_end': route.date_end.isoformat() if route.date_end else None,

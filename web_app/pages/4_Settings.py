@@ -249,18 +249,22 @@ def main():
             #### Adaugarea Perioadelor de Tranzit (Condica)
             *   Pe parcursul unei campanii, perioadele in care masina doar "tranziteaza", fara expunere la public, trebuie introduse prin functia *Tranzit*. Aceste ore **sunt excluse din calculele finale OTS**.
             
-            #### 📈 Raport DOOH (Financiar & Auditat)
+            #### 📉 Raport DOOH (Financiar & Auditat)
             Acest raport special ofera metrici avansate de ROI si performanta auditata:
             - **Sincronizare Impresii**: Valorile de baza sunt acum sincronizate automat cu "Raportul de Campanie" standard pentru o consistenta totala.
             - **Metodologie Elite**: Rapoartele includ acum formule explicite bazate pe **PMUD 2021-2030**, luand in calcul **Factorul de Ocupare (1.65)**, **Densitatea Studentilor** si **Impactul Congestiei (LOS D-F)** asupra vizibilitatii.
-            - **Ajustare pe Baza Datelor Auditate**: Daca sunt prezente date de teren (ore confirmate VnNox), sistemul scaleaza automat impresiile estimate pentru a reflecta performanta reala verificata.
-            - **eCPK (Effective Cost Per K)**: Calculeaza costul real la 1000 de impresii folosind **Bugetul Campaniei** introdus in detalii.
+            
+            #### 🛣️ Gestiune Rute & Navigație (Nou)
+            - **Waypoint Management**: Puteți defini puncte de control (markers) pe hartă. Acestea **persistă** după generare, permițând ajustarea traseului fără a lua totul de la zero.
+            - **Librărie de Rute (Șabloane)**: Orice traseu poate fi salvat ca *Șablon* global. Acesta poate fi apoi importat instant în orice altă campanie din tab-ul dedicat.
+            - **Import/Export KML**: Compatibilitate cu Google Maps/My Maps. Importați trasee `.kml` create extern sau descărcați rutele generate pentru a le partaja.
+            - **Navigație Live**: Driverul are acces la o pagină dedicată cu GPS în timp real pentru a urmări traseul exact.
             
             #### 📊 Anexa PoP (Proof of Play)
             Suplimentar Raportului DOOH, sistemul poate genera o anexă tehnică detaliată "Anexa PoP". Aceasta include:
             - **Harta GPS (Traseu Zilnic)**: Harta vizuală auto-generată cu polilinii de culori diferite reprezentând cursele zilnice ale vehiculului.
             - **Tabel Pings VnNox**: Preluare directă din log-urile VnNox cu dovada numărului de spoturi per ecran.
-
+            
             #### 🔍 Gestiune Date Auditate & Modele Import
             Tab-ul dedicat permite importul datelor de teren si configurarea costurilor pentru o precizie maxima. Sistemul previne **importul duplicatelor** (același interval de date) lăsând opțiunea de suprascriere a datelor vechi.
             - **Import GPS (Model Excel/CSV)**: Generează coordonatele și construiește hărțile din Anexa PoP.
@@ -311,10 +315,11 @@ def main():
 
         st.divider()
         st.subheader("ℹ️ System Information")
+        from src.version import VERSION, MAINTAINER, CONTACT
         st.markdown(f"""
-        **{_('Version')}:** 4.3 (Elite Reporting Edition)  
-        **Maintainer:** Cătălin Dragomirescu  
-        **Contact:** 0744929578 | catalin.dragomirescu@gmail.com
+        **{_('Version')}:** {VERSION}  
+        **Maintainer:** {MAINTAINER}  
+        **Contact:** {CONTACT}
         """)
         
         st.info("Design and built for Fairway", icon="💼")

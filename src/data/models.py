@@ -275,9 +275,11 @@ class CampaignRoute(Base):
     __table_args__ = {'extend_existing': True}
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    campaign_id = Column(String(36), ForeignKey('campaigns.id', ondelete='CASCADE'), nullable=False)
+    campaign_id = Column(String(36), ForeignKey('campaigns.id', ondelete='CASCADE'), nullable=True) # templates can have null campaign
     name = Column(String(200), nullable=False)
     geojson_data = Column(JSON)  # Store the actual path/route
+    waypoints = Column(JSON)      # Store the control points (markers) for editing
+    is_template = Column(Boolean, default=False)
     
     # Optional specific allocations
     vehicle_id = Column(String(36), ForeignKey('vehicles.id'), nullable=True)
